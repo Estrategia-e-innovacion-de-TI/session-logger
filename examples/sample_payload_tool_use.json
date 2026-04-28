@@ -1,0 +1,12 @@
+{
+  "timestamp": 1704614520000,
+  "cwd": "/workspace/project",
+  "toolName": "powershell",
+  "toolArgs": "{\"command\":\"Get-ChildItem -Force\",\"description\":\"List files in workspace\"}",
+  "toolResult": {
+    "resultType": "success",
+    "output": "README.md\nsrc\nexamples"
+  },
+  "sessionId": "session-demo-001"
+}
+

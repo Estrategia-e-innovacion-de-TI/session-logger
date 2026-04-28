@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "bash": "copilot-session-logger log --event sessionStart",
+        "powershell": "copilot-session-logger log --event sessionStart",
+        "cwd": ".",
+        "timeoutSec": 15
+      }
+    ],
+    "userPromptSubmitted": [
+      {
+        "type": "command",
+        "bash": "copilot-session-logger log --event userPromptSubmitted",
+        "powershell": "copilot-session-logger log --event userPromptSubmitted",
+        "cwd": ".",
+        "timeoutSec": 15
+      }
+    ],
+    "preToolUse": [
+      {
+        "type": "command",
+        "bash": "copilot-session-logger log --event preToolUse",
+        "powershell": "copilot-session-logger log --event preToolUse",
+        "cwd": ".",
+        "timeoutSec": 15
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "bash": "copilot-session-logger log --event postToolUse",
+        "powershell": "copilot-session-logger log --event postToolUse",
+        "cwd": ".",
+        "timeoutSec": 15
+      }
+    ],
+    "sessionEnd": [
+      {
+        "type": "command",
+        "bash": "copilot-session-logger log --event sessionEnd",
+        "powershell": "copilot-session-logger log --event sessionEnd",
+        "cwd": ".",
+        "timeoutSec": 15
+      }
+    ],
+    "errorOccurred": [
+      {
+        "type": "command",
+        "bash": "copilot-session-logger log --event errorOccurred",
+        "powershell": "copilot-session-logger log --event errorOccurred",
+        "cwd": ".",
+        "timeoutSec": 15
+      }
+    ]
+  }
+}
+
