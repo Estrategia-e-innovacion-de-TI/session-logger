@@ -1,0 +1,12 @@
+services:
+  copilot-log-backend:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      COPILOT_LOG_BACKEND_API_KEYS: dev-token
+      COPILOT_LOG_BACKEND_STORAGE: jsonl
+      COPILOT_LOG_BACKEND_HOME: /data
+      COPILOT_LOG_BACKEND_MAX_BODY_MB: "2"
+    volumes:
+      - ./data:/data

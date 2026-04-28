@@ -7,7 +7,7 @@
         "bash": "copilot-session-logger log --event sessionStart",
         "powershell": "copilot-session-logger log --event sessionStart",
         "cwd": ".",
-        "timeoutSec": 15
+        "timeoutSec": 5
       }
     ],
     "userPromptSubmitted": [
@@ -16,7 +16,7 @@
         "bash": "copilot-session-logger log --event userPromptSubmitted",
         "powershell": "copilot-session-logger log --event userPromptSubmitted",
         "cwd": ".",
-        "timeoutSec": 15
+        "timeoutSec": 5
       }
     ],
     "preToolUse": [
@@ -25,7 +25,7 @@
         "bash": "copilot-session-logger log --event preToolUse",
         "powershell": "copilot-session-logger log --event preToolUse",
         "cwd": ".",
-        "timeoutSec": 15
+        "timeoutSec": 5
       }
     ],
     "postToolUse": [
@@ -34,7 +34,7 @@
         "bash": "copilot-session-logger log --event postToolUse",
         "powershell": "copilot-session-logger log --event postToolUse",
         "cwd": ".",
-        "timeoutSec": 15
+        "timeoutSec": 5
       }
     ],
     "sessionEnd": [
@@ -43,7 +43,7 @@
         "bash": "copilot-session-logger log --event sessionEnd",
         "powershell": "copilot-session-logger log --event sessionEnd",
         "cwd": ".",
-        "timeoutSec": 15
+        "timeoutSec": 5
       }
     ],
     "errorOccurred": [
@@ -52,9 +52,8 @@
         "bash": "copilot-session-logger log --event errorOccurred",
         "powershell": "copilot-session-logger log --event errorOccurred",
         "cwd": ".",
-        "timeoutSec": 15
+        "timeoutSec": 5
       }
     ]
   }
 }
-

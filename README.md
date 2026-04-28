@@ -1,55 +1,43 @@
 # copilot-session-logger
 
-`copilot-session-logger` es un hook logger para GitHub Copilot que captura prompts, eventos de sesion, uso de herramientas y errores en un formato apto para auditoria, analitica y troubleshooting.
+`copilot-session-logger` captura eventos entregados por hooks de GitHub Copilot, los normaliza a un `EventRecord`, sanitiza secretos y los guarda localmente en JSONL. Opcionalmente envia el mismo evento sanitizado a una API HTTP central y usa una cola offline cuando la red o el backend fallan.
 
-El proyecto esta basado en el ejemplo oficial `hooks/session-logger` de `github/awesome-copilot`, pero extiende el enfoque con:
+No hace keylogging, no intercepta trafico, no inspecciona internals del IDE y no captura datos fuera del payload recibido por hooks, variables configuradas y contexto Git disponible.
 
-- persistencia estructurada en JSONL
-- SQLite opcional
-- sanitizacion de secretos
-- correlacion best-effort de `session_id`
-- enriquecimiento con contexto Git
-- CLI reusable para hooks y pruebas locales
+## Arquitectura
 
-## Problema que resuelve
+```text
+GitHub Copilot hook
+        |
+        v
+copilot-session-logger log
+        |
+        +--> normalizacion + sanitizacion
+        |
+        +--> JSONL local
+        |    ~/.copilot-session-logger/logs/YYYY-MM-DD/events.jsonl
+        |
+        +--> HTTP POST opcional
+             |
+             +--> backend FastAPI /v1/events
+             |    ~/.copilot-log-backend/events/YYYY-MM-DD/events.jsonl
+             |
+             +--> si falla: cola offline local
+                  ~/.copilot-session-logger/queue/pending.jsonl
+```
 
-Los hooks oficiales muestran un ejemplo minimo para loggear eventos de Copilot, pero no cubren observabilidad suficiente para auditoria real. Este proyecto agrega un collector local que:
-
-- guarda el payload crudo sanitizado
-- intenta extraer el prompt del usuario aunque el schema cambie
-- correlaciona eventos por sesion cuando el payload no trae `sessionId`
-- agrega branch, commit, repo, archivos modificados y tool use cuando aplica
-
-## Que informacion captura
-
-Cada `EventRecord` incluye:
-
-- `event_id`
-- `session_id`
-- `event_type`
-- `timestamp`
-- `user_prompt`
-- `prompt_hash`
-- `repo_path`
-- `repo_name`
-- `git_branch`
-- `git_commit`
-- `working_directory`
-- `actor`
-- `files_changed`
-- `tool_name`
-- `command`
-- `status`
-- `error`
-- `raw_payload`
-- `metadata`
-
-`metadata` conserva informacion adicional como `tool_args`, `tool_result`, `source`, `reason`, estado del parser de stdin y diagnostico Git.
+El almacenamiento local es siempre el primer fallback. Si HTTP esta habilitado y falla con un error reintentable, el evento se guarda en cola offline. En ejecuciones futuras y con `flush`, el logger reintenta eventos pendientes.
 
 ## Instalacion
 
 ```bash
 pip install -e ".[dev]"
+```
+
+PowerShell:
+
+```powershell
+python -m pip install -e ".[dev]"
 ```
 
 ## Uso rapido
@@ -59,7 +47,8 @@ copilot-session-logger doctor
 ```
 
 ```bash
-echo '{"prompt":"Explicame este codigo"}' | copilot-session-logger log --event userPromptSubmitted --dry-run
+echo '{"timestamp":1704614500000,"cwd":"/tmp/project","prompt":"Explicame este codigo"}' \
+  | copilot-session-logger log --event userPromptSubmitted --dry-run
 ```
 
 ```bash
@@ -68,9 +57,7 @@ copilot-session-logger demo
 
 ## CLI
 
-### `log`
-
-Lee JSON desde `stdin` y genera un `EventRecord`. Si `stdin` viene vacio, usa argumentos, variables de entorno y contexto Git.
+`log` lee JSON desde `stdin`, construye un `EventRecord`, guarda JSONL local y, si HTTP esta activo, intenta enviarlo al backend. En modo normal no imprime stdout para no interferir con hooks como `preToolUse`.
 
 ```bash
 copilot-session-logger log --event userPromptSubmitted
@@ -78,90 +65,64 @@ copilot-session-logger log --event userPromptSubmitted
 
 Opciones utiles:
 
-- `--dry-run`: imprime el `EventRecord` en stdout y no escribe archivos
-- `--sqlite`: habilita SQLite para esa ejecucion
-- `--session-id`: fuerza un `session_id`
-- `--actor`: fuerza el usuario/actor
-- `--metadata-json '{"team":"platform"}'`: agrega metadata libre
+- `--dry-run`: imprime el evento sanitizado; no persiste ni envia HTTP.
+- `--sqlite`: habilita SQLite local en esa ejecucion.
+- `--session-id`, `--actor`, `--tool-name`, `--command`, `--status`, `--error`: overrides explicitos.
+- `--metadata-json '{"team":"platform"}'`: metadata adicional.
 
-Nota importante:
+`flush` reintenta manualmente eventos en cola:
 
-- El comando `log` es silencioso por defecto para no interferir con hooks como `preToolUse`, cuyo stdout puede ser interpretado por Copilot.
-
-### `doctor`
-
-Imprime un reporte JSON con:
-
-- version de Python
-- rutas efectivas
-- config cargada
-- diagnostico Git
-- estado de almacenamiento
-
-### `demo`
-
-Genera tres eventos simulados:
-
-1. `sessionStart`
-2. `userPromptSubmitted`
-3. `postToolUse`
-
-## Persistencia
-
-Por defecto los eventos se escriben en:
-
-```text
-~/.copilot-session-logger/logs/YYYY-MM-DD/events.jsonl
+```bash
+copilot-session-logger flush
 ```
 
-SQLite opcional:
+`doctor` valida configuracion efectiva, escritura local, Git y HTTP. La conectividad HTTP es opcional:
 
-```text
-~/.copilot-session-logger/session_logs.db
+```bash
+copilot-session-logger doctor --check-http
 ```
 
-Puedes cambiar la base de almacenamiento con:
+`demo --send-http` genera eventos simulados, los persiste localmente y los envia al endpoint configurado:
 
-```text
-COPILOT_SESSION_LOGGER_HOME
+```bash
+copilot-session-logger demo --send-http
 ```
 
-## Configuracion YAML
+## Variables del logger
 
-El archivo por defecto es:
+| Variable | Default | Uso |
+| --- | --- | --- |
+| `COPILOT_SESSION_LOGGER_HOME` | `~/.copilot-session-logger` | Base local del cliente. |
+| `COPILOT_SESSION_LOGGER_LOGS_DIR` | `$HOME/logs` | JSONL local. |
+| `COPILOT_SESSION_LOGGER_SQLITE_ENABLED` | `false` | SQLite local opcional. |
+| `COPILOT_SESSION_LOGGER_HTTP_ENABLED` | `false` | Habilita envio HTTP. |
+| `COPILOT_SESSION_LOGGER_ENDPOINT` | vacio | URL, por ejemplo `http://localhost:8080/v1/events`. |
+| `COPILOT_SESSION_LOGGER_API_KEY` | vacio | Token Bearer enviado al backend. |
+| `COPILOT_SESSION_LOGGER_TIMEOUT_SECONDS` | `2` | Timeout por request HTTP. |
+| `COPILOT_SESSION_LOGGER_OFFLINE_QUEUE_ENABLED` | `true` | Habilita cola offline. |
+| `COPILOT_SESSION_LOGGER_MAX_RETRIES` | `3` | Reintentos antes de `dead_letter`. |
+| `COPILOT_SESSION_LOGGER_REDACT_SECRETS` | `true` | Sanitiza secretos antes de persistir/enviar. |
 
-```text
-~/.copilot-session-logger/config.yaml
-```
-
-Ejemplo:
+Tambien puede usarse `~/.copilot-session-logger/config.yaml`:
 
 ```yaml
 actor: your-user
-dry_run: false
 redact_secrets: true
 storage:
   jsonl_enabled: true
-  sqlite_enabled: true
-paths:
-  home_dir: ~/.copilot-session-logger
-  logs_dir: ~/.copilot-session-logger/logs
-  sqlite_path: ~/.copilot-session-logger/session_logs.db
-  session_state_path: ~/.copilot-session-logger/state/active_sessions.json
+  sqlite_enabled: false
+http:
+  enabled: true
+  endpoint: http://localhost:8080/v1/events
+  api_key: dev-token
+  timeout_seconds: 2
+  offline_queue_enabled: true
+  max_retries: 3
 ```
 
-## Configuracion del hook en GitHub Copilot
+## Configuracion de hooks
 
-La documentacion actual de hooks de GitHub Copilot no usa el formato simplificado `{"command":"..."}`. El formato compatible actual usa:
-
-- `version: 1`
-- `hooks`
-- por evento, un arreglo de objetos `type: "command"`
-- claves `bash` y/o `powershell`
-
-Este repositorio incluye un ejemplo listo en [examples/copilot-hooks.json](examples/copilot-hooks.json).
-
-Ejemplo:
+Ejemplo para `.github/hooks/copilot-hooks.json`:
 
 ```json
 {
@@ -173,145 +134,187 @@ Ejemplo:
         "bash": "copilot-session-logger log --event userPromptSubmitted",
         "powershell": "copilot-session-logger log --event userPromptSubmitted",
         "cwd": ".",
-        "timeoutSec": 15
+        "timeoutSec": 5
+      }
+    ],
+    "sessionStart": [
+      {
+        "type": "command",
+        "bash": "copilot-session-logger log --event sessionStart",
+        "powershell": "copilot-session-logger log --event sessionStart",
+        "cwd": ".",
+        "timeoutSec": 5
       }
     ]
   }
 }
 ```
 
-Para usarlo en un repositorio con Copilot CLI o agentes, coloca un archivo `.json` dentro de `.github/hooks/`.
+Este repositorio incluye un ejemplo completo en [examples/copilot-hooks.json](examples/copilot-hooks.json).
 
-## Probar sin Copilot
+## Backend local
+
+El backend vive en [backend/](backend/) y expone:
+
+- `GET /health`
+- `POST /v1/events`
+- `POST /v1/events/batch`
+- `GET /v1/events`
+
+Variables del backend:
+
+| Variable | Default | Uso |
+| --- | --- | --- |
+| `COPILOT_LOG_BACKEND_API_KEYS` | vacio | Lista de tokens validos separada por comas. |
+| `COPILOT_LOG_BACKEND_STORAGE` | `jsonl` | `jsonl` o `sqlite`. |
+| `COPILOT_LOG_BACKEND_HOME` | `~/.copilot-log-backend` | Base de persistencia del backend. |
+| `COPILOT_LOG_BACKEND_MAX_BODY_MB` | `2` | Tamano maximo de request. |
+| `ALLOW_UNKNOWN_EVENT_TYPES` | `false` | Acepta eventos no conocidos si es `true`. |
+
+Ejecutar:
 
 ```bash
-echo '{"prompt":"Explícame este código"}' | copilot-session-logger log --event userPromptSubmitted --dry-run
+cd backend
+pip install -e ".[dev]"
+export COPILOT_LOG_BACKEND_API_KEYS=dev-token
+uvicorn copilot_log_backend.main:app --reload --port 8080
 ```
 
 PowerShell:
 
 ```powershell
-'{"prompt":"Explicame este codigo"}' | copilot-session-logger log --event userPromptSubmitted --dry-run
+cd backend
+python -m pip install -e ".[dev]"
+$env:COPILOT_LOG_BACKEND_API_KEYS = "dev-token"
+uvicorn copilot_log_backend.main:app --reload --port 8080
 ```
 
-## Ejemplo de evento JSONL
+## Prueba end-to-end local
+
+Terminal 1:
+
+```bash
+cd backend
+export COPILOT_LOG_BACKEND_API_KEYS=dev-token
+uvicorn copilot_log_backend.main:app --reload --port 8080
+```
+
+Terminal 2:
+
+```bash
+export COPILOT_SESSION_LOGGER_HTTP_ENABLED=true
+export COPILOT_SESSION_LOGGER_ENDPOINT=http://localhost:8080/v1/events
+export COPILOT_SESSION_LOGGER_API_KEY=dev-token
+```
+
+```bash
+echo '{"timestamp":1704614500000,"cwd":"/tmp/project","prompt":"Explicame este codigo"}' \
+  | copilot-session-logger log --event userPromptSubmitted --dry-run
+```
+
+```bash
+echo '{"timestamp":1704614500000,"cwd":"/tmp/project","prompt":"Explicame este codigo"}' \
+  | copilot-session-logger log --event userPromptSubmitted
+```
+
+Consulta:
+
+```bash
+curl -s -H "Authorization: Bearer dev-token" \
+  "http://localhost:8080/v1/events?event_type=userPromptSubmitted&limit=5"
+```
+
+Respuesta exitosa de ingesta directa:
 
 ```json
 {
-  "event_id": "7cb355f9-d8de-45b7-a4db-387cb16fe545",
-  "session_id": "2ee7f2df-0f18-4dc1-b661-7df32d07a7be",
-  "event_type": "userPromptSubmitted",
-  "timestamp": "2024-01-07T18:41:00+00:00",
-  "user_prompt": "Explain this code safely",
-  "prompt_hash": "4b36209d7d5e6380d4d99257ed67665f302e5f0fcbf5f7f5ca4e6867437c14b1",
-  "repo_path": "/workspace/project",
-  "repo_name": "project",
-  "git_branch": "main",
-  "git_commit": "9cc8dc18f748fd405f0f22d0782343cbf6f4f75f",
-  "working_directory": "/workspace/project",
-  "actor": "alice",
-  "files_changed": [
-    "README.md",
-    "src/app.py"
-  ],
-  "tool_name": null,
-  "command": null,
-  "status": null,
-  "error": null,
-  "raw_payload": {
-    "timestamp": 1704652860000,
-    "cwd": "/workspace/project",
-    "prompt": "Explain this code safely"
-  },
-  "metadata": {
-    "stdin": {
-      "stdin_present": true,
-      "stdin_mode": "json"
-    },
-    "session_strategy": "payload_or_arg",
-    "git": {
-      "git_available": true,
-      "is_repo": true,
-      "error": null
-    }
-  }
+  "status": "accepted",
+  "event_id": "7cb355f9-d8de-45b7-a4db-387cb16fe545"
 }
 ```
 
-## Sanitizacion
+Si el backend esta caido, el evento queda en:
 
-Antes de persistir, el logger redacta:
+```text
+~/.copilot-session-logger/queue/pending.jsonl
+```
 
-- GitHub tokens
-- AWS access keys
-- OpenAI keys
-- Anthropic keys
-- JWT
-- passwords
-- private keys
+Cuando el backend vuelva:
 
-La sanitizacion aplica a:
+```bash
+copilot-session-logger flush
+```
 
-- `user_prompt`
-- `command`
-- `error`
-- `raw_payload`
-- `metadata`
+## Docker
+
+```bash
+cd backend
+docker compose up --build
+```
+
+El compose publica `http://localhost:8080` y persiste eventos en `backend/data`.
+
+## Persistencia
+
+Cliente local:
+
+```text
+~/.copilot-session-logger/logs/YYYY-MM-DD/events.jsonl
+~/.copilot-session-logger/session_logs.db
+~/.copilot-session-logger/queue/pending.jsonl
+~/.copilot-session-logger/queue/sent.jsonl
+~/.copilot-session-logger/queue/dead_letter.jsonl
+```
+
+Backend:
+
+```text
+~/.copilot-log-backend/events/YYYY-MM-DD/events.jsonl
+~/.copilot-log-backend/events.db
+```
+
+## Matriz de decisiones
+
+| Modo | Cuando usarlo | Tradeoff |
+| --- | --- | --- |
+| Local only | Desarrollo individual, pilotos o equipos sin collector central. | Simple y resiliente, pero sin visibilidad organizacional. |
+| Local + API | Observabilidad central con fallback local. | Requiere operar token, endpoint y retencion. |
+| API + SIEM futuro | Auditoria enterprise, correlacion y dashboards. | Mayor complejidad, requiere gobierno de datos y controles de acceso. |
+
+## Privacidad y seguridad
+
+- Consentimiento: informa a los usuarios antes de habilitar captura organizacional.
+- Minimizacion: el logger solo usa payload del hook, variables configuradas y contexto Git permitido.
+- Sanitizacion: cliente y backend redactan tokens, passwords, private keys, JWT y claves comunes antes de persistir.
+- Retencion: define TTL para JSONL, SQLite y backups antes de adopcion amplia.
+- Acceso restringido: protege `COPILOT_SESSION_LOGGER_API_KEY`, `COPILOT_LOG_BACKEND_API_KEYS` y directorios de logs.
+- Consola: el backend no loguea prompts completos; solo `event_id`, `event_type`, `actor`, `repo_name` y estado.
 
 ## Limitaciones
 
-- Solo se capturan prompts si Copilot entrega el payload al hook.
-- Si el payload cambia, se conserva `raw_payload` para analisis posterior.
-- No intercepta trafico ni hace keylogging.
-- La correlacion de `session_id` es best-effort cuando el payload no incluye un identificador explicito.
-- `files_changed` depende de que `git` este disponible y el directorio sea un repositorio Git.
+- Solo captura prompts si Copilot los entrega al hook.
+- No cubre audit logs empresariales de GitHub.
+- No intercepta trafico ni internals del IDE.
+- La correlacion de `session_id` es best-effort cuando el payload no incluye identificador.
+- `files_changed` depende de que `git` este disponible y el `cwd` sea un repositorio.
 
-## Privacidad
+## Roadmap
 
-- Los datos se almacenan localmente.
-- Los secretos conocidos se redactan antes de persistirse.
-- Aun asi, los prompts pueden contener informacion sensible de negocio; define politicas claras antes de habilitar el logger en equipos amplios.
-- Si vas a exportar logs a un SIEM o data lake, agrega controles de retencion y acceso.
+- Envio a S3.
+- OpenSearch/SIEM.
+- Dashboards.
+- Soporte Claude, Codex y Cursor mediante adaptadores.
 
-## Extender a Claude, Codex y Cursor
+## Tests
 
-La base ya separa:
+Cliente:
 
-- normalizacion de payload
-- sanitizacion
-- persistencia
-- CLI
-
-Para soportar otros agentes mas adelante, normalmente basta con:
-
-1. agregar extractores de prompt y session metadata para sus payloads
-2. mapear sus eventos a `EventRecord`
-3. mantener la misma capa de storage y redaccion
-
-## Estructura del proyecto
-
-```text
-copilot-session-logger/
-  README.md
-  pyproject.toml
-  src/copilot_session_logger/
-    __init__.py
-    cli.py
-    config.py
-    git_context.py
-    sanitizer.py
-    schema.py
-    storage_jsonl.py
-    storage_sqlite.py
-  examples/
-    copilot-hooks.json
-    sample_payload_tool_use.json
-    sample_payload_user_prompt.json
-  tests/
-    test_cli.py
-    test_git_context.py
-    test_sanitizer.py
-    test_schema.py
-    test_storage_jsonl.py
+```bash
+python -m pytest -q
 ```
 
+Backend:
+
+```bash
+python -m pytest backend/tests -q
+```

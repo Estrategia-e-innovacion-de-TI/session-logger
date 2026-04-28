@@ -24,11 +24,43 @@ def parse_bool(value: Any, default: bool = False) -> bool:
     return default
 
 
+def parse_float(value: Any, default: float) -> float:
+    if value in (None, ""):
+        return default
+    try:
+        parsed = float(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default
+
+
+def parse_int(value: Any, default: int) -> int:
+    if value in (None, ""):
+        return default
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed >= 0 else default
+
+
 class StorageConfig(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     jsonl_enabled: bool = True
     sqlite_enabled: bool = False
+
+
+class HttpConfig(BaseModel):
+    model_config = ConfigDict(arbitrary_types_allowed=True, extra="ignore")
+
+    enabled: bool = False
+    endpoint: str | None = None
+    api_key: str | None = None
+    timeout_seconds: float = 2.0
+    offline_queue_enabled: bool = True
+    max_retries: int = 3
+    queue_dir: Path
 
 
 class AppConfig(BaseModel):
@@ -39,6 +71,7 @@ class AppConfig(BaseModel):
     sqlite_path: Path
     session_state_path: Path
     storage: StorageConfig = Field(default_factory=StorageConfig)
+    http: HttpConfig
     actor: str | None = None
     dry_run: bool = False
     redact_secrets: bool = True
@@ -50,6 +83,8 @@ class AppConfig(BaseModel):
         self.session_state_path.parent.mkdir(parents=True, exist_ok=True)
         if self.storage.sqlite_enabled:
             self.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
+        if self.http.offline_queue_enabled:
+            self.http.queue_dir.mkdir(parents=True, exist_ok=True)
 
 
 def _deep_get(mapping: Mapping[str, Any], keys: tuple[str, ...], default: Any = None) -> Any:
@@ -138,6 +173,27 @@ def load_config(
         or env.get("USERNAME")
     )
     redact_value = env.get("COPILOT_SESSION_LOGGER_REDACT_SECRETS", config_data.get("redact_secrets"))
+    http_data = config_data.get("http") if isinstance(config_data.get("http"), dict) else {}
+    http_enabled_value = (
+        env.get("COPILOT_SESSION_LOGGER_HTTP_ENABLED")
+        if "COPILOT_SESSION_LOGGER_HTTP_ENABLED" in env
+        else http_data.get("enabled")
+    )
+    endpoint_value = env.get("COPILOT_SESSION_LOGGER_ENDPOINT") or http_data.get("endpoint")
+    api_key_value = env.get("COPILOT_SESSION_LOGGER_API_KEY") or http_data.get("api_key")
+    timeout_value = env.get("COPILOT_SESSION_LOGGER_TIMEOUT_SECONDS", http_data.get("timeout_seconds"))
+    queue_enabled_value = (
+        env.get("COPILOT_SESSION_LOGGER_OFFLINE_QUEUE_ENABLED")
+        if "COPILOT_SESSION_LOGGER_OFFLINE_QUEUE_ENABLED" in env
+        else http_data.get("offline_queue_enabled")
+    )
+    max_retries_value = env.get("COPILOT_SESSION_LOGGER_MAX_RETRIES", http_data.get("max_retries"))
+    queue_dir_value = (
+        env.get("COPILOT_SESSION_LOGGER_QUEUE_DIR")
+        or _deep_get(config_data, ("paths", "queue_dir"))
+        or http_data.get("queue_dir")
+        or str(home_dir / "queue")
+    )
 
     app_config = AppConfig(
         home_dir=home_dir,
@@ -147,6 +203,15 @@ def load_config(
         storage=StorageConfig(
             jsonl_enabled=parse_bool(jsonl_enabled_value, default=True),
             sqlite_enabled=parse_bool(sqlite_enabled_value, default=False),
+        ),
+        http=HttpConfig(
+            enabled=parse_bool(http_enabled_value, default=False),
+            endpoint=str(endpoint_value).strip() if endpoint_value else None,
+            api_key=str(api_key_value).strip() if api_key_value else None,
+            timeout_seconds=parse_float(timeout_value, default=2.0),
+            offline_queue_enabled=parse_bool(queue_enabled_value, default=True),
+            max_retries=parse_int(max_retries_value, default=3),
+            queue_dir=Path(str(queue_dir_value)).expanduser(),
         ),
         actor=actor_value,
         dry_run=parse_bool(dry_run_value, default=False),

@@ -13,12 +13,14 @@ import typer
 
 from .config import AppConfig, load_config, load_session_index, save_session_index
 from .git_context import GitContext, collect_git_context
+from .offline_queue import DEFAULT_PROCESS_LIMIT, OfflineQueue
 from .sanitizer import sanitize_value
 from .schema import ACTOR_PATHS, PROMPT_PATHS, SESSION_ID_PATHS, SUPPORTED_EVENTS, EventRecord, first_value, maybe_parse_json
+from .storage_http import HttpEventSender, HttpSendResult, check_connectivity
 from .storage_jsonl import JsonlEventWriter
 from .storage_sqlite import SQLiteEventWriter
 
-app = typer.Typer(help="Capture GitHub Copilot hook payloads to JSONL and SQLite.")
+app = typer.Typer(help="Capture GitHub Copilot hook payloads to local storage and optional HTTP.")
 
 
 def _read_stdin_payload() -> tuple[Any | None, dict[str, Any]]:
@@ -60,6 +62,17 @@ def _ensure_storage_ready(config: AppConfig) -> None:
 def _is_effectively_writable(path: Path) -> bool:
     target = path if path.exists() else path.parent
     return target.exists() and os.access(target, os.W_OK)
+
+
+def _local_write_check(config: AppConfig) -> tuple[bool, str | None]:
+    try:
+        config.ensure_home()
+        probe_path = config.home_dir / ".doctor-write-test"
+        probe_path.write_text("ok", encoding="utf-8")
+        probe_path.unlink(missing_ok=True)
+    except OSError as exc:
+        return False, str(exc)
+    return True, None
 
 
 def _json_arg_to_mapping(raw_value: str | None) -> dict[str, Any]:
@@ -346,6 +359,88 @@ def persist_event(record: EventRecord, config: AppConfig, sqlite_enabled_overrid
     return outputs
 
 
+def _format_http_error(result: HttpSendResult) -> str | None:
+    if result.status_code is not None:
+        return f"{result.error or 'http_error'}:{result.status_code}"
+    return result.error
+
+
+def flush_offline_queue(config: AppConfig, *, max_items: int = DEFAULT_PROCESS_LIMIT) -> dict[str, Any]:
+    if not config.http.enabled:
+        return {
+            "http_enabled": False,
+            "flushed": False,
+            "reason": "http_disabled",
+        }
+    if not config.http.endpoint:
+        return {
+            "http_enabled": True,
+            "flushed": False,
+            "reason": "endpoint_not_configured",
+        }
+    if not config.http.api_key:
+        return {
+            "http_enabled": True,
+            "flushed": False,
+            "reason": "api_key_not_configured",
+        }
+    if not config.http.offline_queue_enabled:
+        return {
+            "http_enabled": True,
+            "flushed": False,
+            "reason": "offline_queue_disabled",
+        }
+
+    queue = OfflineQueue(config.http.queue_dir, max_retries=config.http.max_retries)
+    summary = queue.process_pending(
+        HttpEventSender(config.http),
+        max_items=max_items,
+    )
+    return {
+        "http_enabled": True,
+        "flushed": True,
+        "queue_dir": str(config.http.queue_dir),
+        "summary": summary.to_jsonable(),
+    }
+
+
+def deliver_event_http(
+    record: EventRecord,
+    config: AppConfig,
+    *,
+    replay_pending: bool = True,
+    replay_limit: int = 1,
+) -> dict[str, Any]:
+    if not config.http.enabled:
+        return {"enabled": False}
+
+    delivery: dict[str, Any] = {"enabled": True}
+    sender = HttpEventSender(config.http)
+
+    if config.http.offline_queue_enabled and replay_pending:
+        delivery["offline_flush"] = flush_offline_queue(config, max_items=replay_limit)
+
+    result = sender.send_event(record)
+    delivery["send"] = result.to_jsonable()
+
+    if result.success or not config.http.offline_queue_enabled:
+        return delivery
+
+    if result.error in {"endpoint_not_configured", "api_key_not_configured"}:
+        delivery["queue_action"] = "skipped_configuration_error"
+        return delivery
+
+    queue = OfflineQueue(config.http.queue_dir, max_retries=config.http.max_retries)
+    last_error = _format_http_error(result)
+    if result.retryable:
+        queue.enqueue(record, retry_count=1, last_error=last_error)
+        delivery["queue_action"] = "pending"
+    else:
+        queue.dead_letter(record, retry_count=0, last_error=last_error)
+        delivery["queue_action"] = "dead_letter"
+    return delivery
+
+
 @app.command()
 def log(
     event: str = typer.Option(..., "--event", help="Copilot hook event type."),
@@ -394,14 +489,37 @@ def log(
     if sqlite_enabled is not None:
         config.storage.sqlite_enabled = sqlite_enabled
     persist_event(record, config)
+    deliver_event_http(record, config)
+
+
+@app.command()
+def flush(
+    max_items: int = typer.Option(DEFAULT_PROCESS_LIMIT, "--max-items", min=1, max=DEFAULT_PROCESS_LIMIT, help="Maximum queued events to retry."),
+    config_file: Path | None = typer.Option(None, "--config", exists=False, dir_okay=False, resolve_path=True, help="Path to a YAML config file."),
+) -> None:
+    config = load_config(config_file)
+    _ensure_storage_ready(config)
+    report = flush_offline_queue(config, max_items=max_items)
+    typer.echo(json.dumps(report, ensure_ascii=True, indent=2))
+    if not report.get("flushed"):
+        raise typer.Exit(code=1)
 
 
 @app.command()
 def doctor(
     config_file: Path | None = typer.Option(None, "--config", exists=False, dir_okay=False, resolve_path=True, help="Path to a YAML config file."),
+    check_http: bool = typer.Option(False, "--check-http", help="Attempt a basic connectivity check to the configured endpoint."),
 ) -> None:
     config = load_config(config_file)
     git_context = collect_git_context(Path.cwd())
+    writable, write_error = _local_write_check(config)
+    connectivity = None
+    if check_http and config.http.endpoint:
+        connectivity = check_connectivity(
+            config.http.endpoint,
+            timeout_seconds=config.http.timeout_seconds,
+            api_key=config.http.api_key,
+        ).to_jsonable()
     report = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "python_version": platform.python_version(),
@@ -413,11 +531,25 @@ def doctor(
         "sqlite_path": str(config.sqlite_path),
         "config_path": str(config.config_path) if config.config_path else None,
         "session_state_path": str(config.session_state_path),
+        "http": {
+            "enabled": config.http.enabled,
+            "endpoint": config.http.endpoint,
+            "endpoint_configured": bool(config.http.endpoint),
+            "api_key_present": bool(config.http.api_key),
+            "timeout_seconds": config.http.timeout_seconds,
+            "offline_queue_enabled": config.http.offline_queue_enabled,
+            "max_retries": config.http.max_retries,
+            "queue_dir": str(config.http.queue_dir),
+            "connectivity": connectivity if connectivity is not None else "not_checked",
+        },
         "writable": {
             "home_dir": _is_effectively_writable(config.home_dir),
             "logs_dir": _is_effectively_writable(config.logs_dir),
             "sqlite_path_parent": _is_effectively_writable(config.sqlite_path.parent),
             "session_state_parent": _is_effectively_writable(config.session_state_path.parent),
+            "queue_dir": _is_effectively_writable(config.http.queue_dir),
+            "write_probe": writable,
+            "write_error": write_error,
         },
         "git": {
             "git_available": git_context.git_available,
@@ -436,6 +568,7 @@ def doctor(
 @app.command()
 def demo(
     dry_run: bool = typer.Option(False, "--dry-run", help="Print demo events instead of persisting them."),
+    send_http: bool = typer.Option(False, "--send-http", help="Send demo events to the configured HTTP endpoint."),
     config_file: Path | None = typer.Option(None, "--config", exists=False, dir_okay=False, resolve_path=True, help="Path to a YAML config file."),
     sqlite_enabled: bool | None = typer.Option(None, "--sqlite/--no-sqlite", help="Enable or disable SQLite for demo output."),
 ) -> None:
@@ -499,9 +632,27 @@ def demo(
 
     if sqlite_enabled is not None:
         config.storage.sqlite_enabled = sqlite_enabled
+    if send_http:
+        config.http.enabled = True
 
     outputs = [persist_event(record, config) for record in records]
-    typer.echo(json.dumps({"events_written": len(records), "outputs": outputs}, ensure_ascii=True, indent=2))
+    deliveries = []
+    if send_http:
+        deliveries = [
+            deliver_event_http(record, config, replay_pending=index == 0)
+            for index, record in enumerate(records)
+        ]
+    typer.echo(
+        json.dumps(
+            {
+                "events_written": len(records),
+                "outputs": outputs,
+                "http": deliveries,
+            },
+            ensure_ascii=True,
+            indent=2,
+        )
+    )
 
 
 def main() -> None:
