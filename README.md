@@ -20,7 +20,7 @@ copilot-session-logger log
         +--> HTTP POST opcional
              |
              +--> backend FastAPI /v1/events
-             |    ~/.copilot-log-backend/events/YYYY-MM-DD/events.jsonl
+             |    PostgreSQL events table
              |
              +--> si falla: cola offline local
                   ~/.copilot-session-logger/queue/pending.jsonl
@@ -154,7 +154,7 @@ Este repositorio incluye un ejemplo completo en [examples/copilot-hooks.json](ex
 
 ## Backend local
 
-El backend vive en [backend/](backend/) y expone:
+El backend vive en [backend/](backend/), usa Clean Architecture y persiste en PostgreSQL por defecto. Expone:
 
 - `GET /health`
 - `POST /v1/events`
@@ -166,10 +166,11 @@ Variables del backend:
 | Variable | Default | Uso |
 | --- | --- | --- |
 | `COPILOT_LOG_BACKEND_API_KEYS` | vacio | Lista de tokens validos separada por comas. |
-| `COPILOT_LOG_BACKEND_STORAGE` | `jsonl` | `jsonl` o `sqlite`. |
-| `COPILOT_LOG_BACKEND_HOME` | `~/.copilot-log-backend` | Base de persistencia del backend. |
+| `COPILOT_LOG_BACKEND_DATABASE_URL` | `postgresql+psycopg://postgres:postgres@localhost:5432/copilot_logs` | URL de PostgreSQL. |
+| `COPILOT_LOG_BACKEND_STORAGE` | `postgres` | Storage productivo del backend central. |
 | `COPILOT_LOG_BACKEND_MAX_BODY_MB` | `2` | Tamano maximo de request. |
-| `ALLOW_UNKNOWN_EVENT_TYPES` | `false` | Acepta eventos no conocidos si es `true`. |
+| `COPILOT_LOG_BACKEND_ALLOW_UNKNOWN_EVENT_TYPES` | `false` | Acepta eventos no conocidos si es `true`. |
+| `COPILOT_LOG_BACKEND_QUERY_LIMIT` | `100` | Limite maximo de consulta. |
 
 Ejecutar:
 
@@ -177,7 +178,8 @@ Ejecutar:
 cd backend
 pip install -e ".[dev]"
 export COPILOT_LOG_BACKEND_API_KEYS=dev-token
-uvicorn copilot_log_backend.main:app --reload --port 8080
+export COPILOT_LOG_BACKEND_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/copilot_logs
+uvicorn copilot_log_backend.application.main:app --reload --port 8080
 ```
 
 PowerShell:
@@ -186,7 +188,8 @@ PowerShell:
 cd backend
 python -m pip install -e ".[dev]"
 $env:COPILOT_LOG_BACKEND_API_KEYS = "dev-token"
-uvicorn copilot_log_backend.main:app --reload --port 8080
+$env:COPILOT_LOG_BACKEND_DATABASE_URL = "postgresql+psycopg://postgres:postgres@localhost:5432/copilot_logs"
+uvicorn copilot_log_backend.application.main:app --reload --port 8080
 ```
 
 ## Prueba end-to-end local
@@ -196,7 +199,8 @@ Terminal 1:
 ```bash
 cd backend
 export COPILOT_LOG_BACKEND_API_KEYS=dev-token
-uvicorn copilot_log_backend.main:app --reload --port 8080
+export COPILOT_LOG_BACKEND_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/copilot_logs
+uvicorn copilot_log_backend.application.main:app --reload --port 8080
 ```
 
 Terminal 2:
@@ -252,7 +256,7 @@ cd backend
 docker compose up --build
 ```
 
-El compose publica `http://localhost:8080` y persiste eventos en `backend/data`.
+El compose publica `http://localhost:8080`, levanta `postgres:16` y persiste datos en el volumen `postgres-data`.
 
 ## Persistencia
 
@@ -269,8 +273,8 @@ Cliente local:
 Backend:
 
 ```text
-~/.copilot-log-backend/events/YYYY-MM-DD/events.jsonl
-~/.copilot-log-backend/events.db
+PostgreSQL database: copilot_logs
+Table: events
 ```
 
 ## Matriz de decisiones
@@ -286,7 +290,7 @@ Backend:
 - Consentimiento: informa a los usuarios antes de habilitar captura organizacional.
 - Minimizacion: el logger solo usa payload del hook, variables configuradas y contexto Git permitido.
 - Sanitizacion: cliente y backend redactan tokens, passwords, private keys, JWT y claves comunes antes de persistir.
-- Retencion: define TTL para JSONL, SQLite y backups antes de adopcion amplia.
+- Retencion: define TTL para JSONL local, PostgreSQL y backups antes de adopcion amplia.
 - Acceso restringido: protege `COPILOT_SESSION_LOGGER_API_KEY`, `COPILOT_LOG_BACKEND_API_KEYS` y directorios de logs.
 - Consola: el backend no loguea prompts completos; solo `event_id`, `event_type`, `actor`, `repo_name` y estado.
 

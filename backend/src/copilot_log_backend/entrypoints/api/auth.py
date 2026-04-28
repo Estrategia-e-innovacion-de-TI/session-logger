@@ -5,13 +5,11 @@ import secrets
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from .config import BackendConfig, load_config
+from copilot_log_backend.application.config import BackendConfig
+
+from .dependencies import get_config
 
 bearer_scheme = HTTPBearer(auto_error=False)
-
-
-def get_config() -> BackendConfig:
-    return load_config()
 
 
 def token_is_valid(token: str, config: BackendConfig) -> bool:

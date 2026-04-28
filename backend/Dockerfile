@@ -2,7 +2,7 @@ FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
-ENV COPILOT_LOG_BACKEND_HOME=/data
+ENV COPILOT_LOG_BACKEND_STORAGE=postgres
 
 WORKDIR /app
 
@@ -12,6 +12,5 @@ COPY src ./src
 RUN pip install --no-cache-dir .
 
 EXPOSE 8080
-VOLUME ["/data"]
 
-CMD ["uvicorn", "copilot_log_backend.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "copilot_log_backend.application.main:app", "--host", "0.0.0.0", "--port", "8080"]

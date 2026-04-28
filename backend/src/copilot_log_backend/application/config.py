@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
-from pydantic import BaseModel, ConfigDict
-
+DEFAULT_DATABASE_URL = "postgresql+psycopg://postgres:postgres@localhost:5432/copilot_logs"
 DEFAULT_HOME_DIR = Path("~/.copilot-log-backend").expanduser()
-DEFAULT_MAX_BODY_MB = 2
 
 
 def parse_bool(value: Any, default: bool = False) -> bool:
@@ -33,14 +32,26 @@ def parse_positive_float(value: Any, default: float) -> float:
     return parsed if parsed > 0 else default
 
 
-class BackendConfig(BaseModel):
-    model_config = ConfigDict(arbitrary_types_allowed=True)
+def parse_positive_int(value: Any, default: int) -> int:
+    if value in (None, ""):
+        return default
+    try:
+        parsed = int(value)
+    except (TypeError, ValueError):
+        return default
+    return parsed if parsed > 0 else default
 
+
+@dataclass(frozen=True, slots=True)
+class BackendConfig:
     api_keys: tuple[str, ...]
-    storage: str = "jsonl"
+    database_url: str
+    storage: str
+    max_body_mb: float
+    allow_unknown_event_types: bool
+    query_limit: int
     home_dir: Path = DEFAULT_HOME_DIR
-    max_body_mb: float = DEFAULT_MAX_BODY_MB
-    allow_unknown_event_types: bool = False
+    auto_migrate: bool = True
 
     @property
     def max_body_bytes(self) -> int:
@@ -50,29 +61,12 @@ class BackendConfig(BaseModel):
     def events_dir(self) -> Path:
         return self.home_dir / "events"
 
-    @property
-    def sqlite_path(self) -> Path:
-        return self.home_dir / "events.db"
-
-    def ensure_home(self) -> None:
-        self.home_dir.mkdir(parents=True, exist_ok=True)
-        if self.storage == "jsonl":
-            self.events_dir.mkdir(parents=True, exist_ok=True)
-        if self.storage == "sqlite":
-            self.sqlite_path.parent.mkdir(parents=True, exist_ok=True)
-
-
-def _parse_api_keys(value: str | None) -> tuple[str, ...]:
-    if not value:
-        return ()
-    return tuple(key.strip() for key in value.split(",") if key.strip())
-
 
 def load_config(env: Mapping[str, str] | None = None) -> BackendConfig:
     env = dict(env or os.environ)
-    storage = env.get("COPILOT_LOG_BACKEND_STORAGE", "jsonl").strip().lower()
-    if storage not in {"jsonl", "sqlite"}:
-        storage = "jsonl"
+    storage = env.get("COPILOT_LOG_BACKEND_STORAGE", "postgres").strip().lower()
+    if storage not in {"postgres", "jsonl"}:
+        storage = "postgres"
     allow_unknown = (
         env.get("COPILOT_LOG_BACKEND_ALLOW_UNKNOWN_EVENT_TYPES")
         if "COPILOT_LOG_BACKEND_ALLOW_UNKNOWN_EVENT_TYPES" in env
@@ -80,8 +74,17 @@ def load_config(env: Mapping[str, str] | None = None) -> BackendConfig:
     )
     return BackendConfig(
         api_keys=_parse_api_keys(env.get("COPILOT_LOG_BACKEND_API_KEYS")),
+        database_url=env.get("COPILOT_LOG_BACKEND_DATABASE_URL", DEFAULT_DATABASE_URL),
         storage=storage,
-        home_dir=Path(env.get("COPILOT_LOG_BACKEND_HOME", str(DEFAULT_HOME_DIR))).expanduser(),
-        max_body_mb=parse_positive_float(env.get("COPILOT_LOG_BACKEND_MAX_BODY_MB"), DEFAULT_MAX_BODY_MB),
+        max_body_mb=parse_positive_float(env.get("COPILOT_LOG_BACKEND_MAX_BODY_MB"), 2),
         allow_unknown_event_types=parse_bool(allow_unknown, default=False),
+        query_limit=parse_positive_int(env.get("COPILOT_LOG_BACKEND_QUERY_LIMIT"), 100),
+        home_dir=Path(env.get("COPILOT_LOG_BACKEND_HOME", str(DEFAULT_HOME_DIR))).expanduser(),
+        auto_migrate=parse_bool(env.get("COPILOT_LOG_BACKEND_AUTO_MIGRATE"), default=True),
     )
+
+
+def _parse_api_keys(value: str | None) -> tuple[str, ...]:
+    if not value:
+        return ()
+    return tuple(key.strip() for key in value.split(",") if key.strip())

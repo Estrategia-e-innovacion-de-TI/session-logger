@@ -1,12 +1,34 @@
 services:
-  copilot-log-backend:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: copilot_logs
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d copilot_logs"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
     build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - "8080:8080"
     environment:
       COPILOT_LOG_BACKEND_API_KEYS: dev-token
-      COPILOT_LOG_BACKEND_STORAGE: jsonl
-      COPILOT_LOG_BACKEND_HOME: /data
+      COPILOT_LOG_BACKEND_DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/copilot_logs
+      COPILOT_LOG_BACKEND_STORAGE: postgres
       COPILOT_LOG_BACKEND_MAX_BODY_MB: "2"
-    volumes:
-      - ./data:/data
+      COPILOT_LOG_BACKEND_ALLOW_UNKNOWN_EVENT_TYPES: "false"
+      COPILOT_LOG_BACKEND_QUERY_LIMIT: "100"
+
+volumes:
+  postgres-data:

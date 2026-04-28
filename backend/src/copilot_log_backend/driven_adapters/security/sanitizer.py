@@ -42,37 +42,39 @@ SENSITIVE_KEY_PATTERNS = [
 ]
 
 
-def is_sensitive_key(key: str | None) -> bool:
-    if not key:
-        return False
-    return any(pattern.search(key) for pattern in SENSITIVE_KEY_PATTERNS)
+class RegexSanitizer:
+    def sanitize(self, value: Any, key: str | None = None) -> Any:
+        if value is None:
+            return None
+        if self._is_sensitive_key(key):
+            return "[REDACTED]"
+        if isinstance(value, str):
+            return self._sanitize_string(value, key=key)
+        if isinstance(value, Mapping):
+            return {
+                str(child_key): self.sanitize(child_value, key=str(child_key))
+                for child_key, child_value in value.items()
+            }
+        if isinstance(value, list):
+            return [self.sanitize(item, key=key) for item in value]
+        if isinstance(value, tuple):
+            return [self.sanitize(item, key=key) for item in value]
+        return value
 
+    def _is_sensitive_key(self, key: str | None) -> bool:
+        if not key:
+            return False
+        return any(pattern.search(key) for pattern in SENSITIVE_KEY_PATTERNS)
 
-def sanitize_string(value: str, key: str | None = None) -> str:
-    if is_sensitive_key(key):
-        return "[REDACTED]"
+    def _sanitize_string(self, value: str, key: str | None = None) -> str:
+        if self._is_sensitive_key(key):
+            return "[REDACTED]"
 
-    sanitized = value
-    if PRIVATE_KEY_PATTERN.search(sanitized):
-        sanitized = PRIVATE_KEY_PATTERN.sub("[REDACTED:PRIVATE_KEY]", sanitized)
+        sanitized = value
+        if PRIVATE_KEY_PATTERN.search(sanitized):
+            sanitized = PRIVATE_KEY_PATTERN.sub("[REDACTED:PRIVATE_KEY]", sanitized)
 
-    for pattern, replacement in STRING_PATTERNS:
-        sanitized = pattern.sub(replacement, sanitized)
+        for pattern, replacement in STRING_PATTERNS:
+            sanitized = pattern.sub(replacement, sanitized)
 
-    return sanitized
-
-
-def sanitize_value(value: Any, key: str | None = None) -> Any:
-    if value is None:
-        return None
-    if is_sensitive_key(key):
-        return "[REDACTED]"
-    if isinstance(value, str):
-        return sanitize_string(value, key=key)
-    if isinstance(value, Mapping):
-        return {str(child_key): sanitize_value(child_value, key=str(child_key)) for child_key, child_value in value.items()}
-    if isinstance(value, list):
-        return [sanitize_value(item, key=key) for item in value]
-    if isinstance(value, tuple):
-        return [sanitize_value(item, key=key) for item in value]
-    return value
+        return sanitized
