@@ -1,60 +1,78 @@
 # copilot-log-backend
 
-Backend FastAPI para centralizar eventos de `copilot-session-logger` en PostgreSQL. La implementacion sigue Clean Architecture para separar dominio, casos de uso, API e infraestructura.
+Backend FastAPI para centralizar eventos de `copilot-session-logger` en PostgreSQL. La estructura implementa Clean Architecture siguiendo el enfoque descrito por Bancolombia Tech en "Clean Architecture: aislando los detalles": el dominio queda en el centro, los frameworks y motores de datos quedan en los bordes, y las dependencias apuntan hacia contratos.
 
-## Por que Clean Architecture
-
-El dominio de eventos no debe depender de FastAPI, Pydantic, SQLAlchemy ni PostgreSQL. Esto permite:
-
-- Cambiar PostgreSQL por otro storage implementando `EventRepository`.
-- Probar reglas de negocio con repositorios fake sin levantar infraestructura.
-- Mantener DTOs, modelos SQLAlchemy y entidades de dominio separados.
-- Evitar que detalles de transporte o persistencia contaminen la logica de ingesta.
+Referencia: https://medium.com/bancolombia-tech/clean-architecture-aislando-los-detalles-4f9530f35d7a
 
 ## Estructura
 
 ```text
-src/copilot_log_backend/
-  application/
+backend/
+  app/
     main.py
-    config.py
-    container.py
-    migrate.py
-  domain/
-    entities/event.py
-    gateways/event_repository.py
-    exceptions.py
-  usecases/
-    ingest_event.py
-    ingest_event_batch.py
-    query_events.py
-    health_check.py
-  entrypoints/api/
-    app.py
-    auth.py
-    dependencies.py
-    routes/
-    dto/
-  driven_adapters/
-    postgres/
-      database.py
-      models.py
-      event_repository.py
-      migrations/001_create_events_table.sql
-    jsonl/
-      event_repository.py
-    security/
-      sanitizer.py
+    domain/
+      model/
+        copilot_event.py
+        session.py
+        user_prompt.py
+      gateway/
+        event_repository.py
+        analytics_repository.py
+        sanitizer.py
+      exception/
+        domain_exceptions.py
+    usecase/
+      ingest_event_usecase.py
+      ingest_batch_events_usecase.py
+      get_session_trace_usecase.py
+      get_prompt_trace_usecase.py
+      get_tool_usage_analytics_usecase.py
+      get_repository_activity_usecase.py
+      get_prompt_impact_usecase.py
+      get_session_summary_usecase.py
+      query_events_usecase.py
+    entrypoints/
+      api/
+        v1/
+          events_controller.py
+          analytics_controller.py
+          health_controller.py
+        dto/
+          event_request.py
+          event_response.py
+          analytics_response.py
+    driven_adapters/
+      postgres/
+        models.py
+        event_repository_adapter.py
+        analytics_repository_adapter.py
+        database.py
+        migrations/
+      security/
+        api_key_validator.py
+        sanitizer.py
+      observability/
+        logger.py
+        metrics.py
+    config/
+      settings.py
+      dependency_injection.py
 ```
 
-## Dependencias
+## Reglas de dependencia
 
 ```text
-entrypoints/api -> usecases -> domain gateways <- driven_adapters/postgres
-application/container ensambla implementaciones concretas
+entrypoints/api -> usecase -> domain/gateway <- driven_adapters
+config/dependency_injection ensambla implementaciones concretas
+main.py inicializa FastAPI, middlewares y routers
 ```
 
-`domain/entities/event.py` es una dataclass pura. No importa FastAPI, Pydantic, SQLAlchemy, psycopg ni frameworks.
+- `domain` contiene entidades, value objects, excepciones y puertos. No importa FastAPI, Pydantic, SQLAlchemy, PostgreSQL ni psycopg.
+- `usecase` solo depende de `domain` y de gateways. No recibe `Request`, sesiones SQL ni DTOs HTTP.
+- `entrypoints` valida DTOs con Pydantic, convierte a entidades de dominio, invoca casos de uso y convierte respuestas.
+- `driven_adapters/postgres` implementa `EventRepository` y `AnalyticsRepository`, traduce dominio a SQLAlchemy y maneja persistencia.
+- `driven_adapters/security` implementa detalles de API key y sanitizacion.
+- PostgreSQL se puede cambiar por otro adapter sin modificar casos de uso.
 
 ## Ejecutar con Docker
 
@@ -63,24 +81,16 @@ cd backend
 docker compose up --build
 ```
 
-El compose levanta:
+El servicio queda en `http://localhost:8080`.
 
-- `postgres:16`, base `copilot_logs`, usuario `postgres`, password `postgres`.
-- Backend FastAPI en `http://localhost:8080`.
-- Migracion SQL basica al iniciar el backend.
-
-## Ejecutar local sin Docker
-
-Requiere PostgreSQL accesible.
+## Ejecutar local
 
 ```bash
 cd backend
-pip install -e ".[dev]"
+python -m pip install -e ".[dev]"
 export COPILOT_LOG_BACKEND_API_KEYS=dev-token
 export COPILOT_LOG_BACKEND_DATABASE_URL=postgresql+psycopg://postgres:postgres@localhost:5432/copilot_logs
-export COPILOT_LOG_BACKEND_STORAGE=postgres
-python -m copilot_log_backend.application.migrate
-uvicorn copilot_log_backend.application.main:app --reload --port 8080
+uvicorn app.main:app --reload --port 8080
 ```
 
 PowerShell:
@@ -90,10 +100,10 @@ cd backend
 python -m pip install -e ".[dev]"
 $env:COPILOT_LOG_BACKEND_API_KEYS = "dev-token"
 $env:COPILOT_LOG_BACKEND_DATABASE_URL = "postgresql+psycopg://postgres:postgres@localhost:5432/copilot_logs"
-$env:COPILOT_LOG_BACKEND_STORAGE = "postgres"
-python -m copilot_log_backend.application.migrate
-uvicorn copilot_log_backend.application.main:app --reload --port 8080
+uvicorn app.main:app --reload --port 8080
 ```
+
+Las migraciones SQL se ejecutan al iniciar si `COPILOT_LOG_BACKEND_AUTO_MIGRATE=true`.
 
 ## Variables
 
@@ -101,44 +111,73 @@ uvicorn copilot_log_backend.application.main:app --reload --port 8080
 | --- | --- | --- |
 | `COPILOT_LOG_BACKEND_API_KEYS` | vacio | Tokens Bearer validos separados por comas. |
 | `COPILOT_LOG_BACKEND_DATABASE_URL` | `postgresql+psycopg://postgres:postgres@localhost:5432/copilot_logs` | URL SQLAlchemy de PostgreSQL. |
-| `COPILOT_LOG_BACKEND_STORAGE` | `postgres` | Storage productivo. `jsonl` solo para tests/dev local. |
 | `COPILOT_LOG_BACKEND_MAX_BODY_MB` | `2` | Tamano maximo del body HTTP. |
 | `COPILOT_LOG_BACKEND_ALLOW_UNKNOWN_EVENT_TYPES` | `false` | Permite `event_type` no conocido si es `true`. |
-| `COPILOT_LOG_BACKEND_QUERY_LIMIT` | `100` | Limite maximo para `GET /v1/events`. |
-| `COPILOT_LOG_BACKEND_AUTO_MIGRATE` | `true` | Ejecuta migracion SQL al iniciar si storage es `postgres`. |
+| `COPILOT_LOG_BACKEND_QUERY_LIMIT` | `100` | Limite maximo para `GET /api/v1/events`. |
+| `COPILOT_LOG_BACKEND_ANALYTICS_LIMIT` | `100` | Limite por defecto para consultas analiticas. |
+| `COPILOT_LOG_BACKEND_AUTO_MIGRATE` | `true` | Ejecuta migraciones SQL al iniciar. |
+
+Autenticacion: los endpoints `/api/v1/*` aceptan `Authorization: Bearer <token>` o `X-Logger-Token: <token>`.
 
 ## Endpoints
 
-### `GET /health`
+- `GET /health`
+- `POST /api/v1/events`
+- `POST /api/v1/events/batch`
+- `GET /api/v1/events`
+- `GET /api/v1/sessions/{session_id}`
+- `GET /api/v1/prompts/{userPrompt_id}/trace`
+- `GET /api/v1/analytics/tool-usage`
+- `GET /api/v1/analytics/repository-activity`
+- `GET /api/v1/analytics/prompt-impact`
+- `GET /api/v1/analytics/session-summary`
+
+Ejemplo:
 
 ```bash
-curl -s http://localhost:8080/health
-```
-
-Respuesta:
-
-```json
-{
-  "status": "ok",
-  "storage": "postgres"
-}
-```
-
-### `POST /v1/events`
-
-```bash
-curl -s -X POST http://localhost:8080/v1/events \
+curl -s -X POST http://localhost:8080/api/v1/events \
   -H "Authorization: Bearer dev-token" \
   -H "Content-Type: application/json" \
   -d '{
+    "event_id":"event-1",
     "session_id":"session-1",
     "event_type":"userPromptSubmitted",
     "timestamp":1704614500000,
-    "user_prompt":"Explicame este codigo",
-    "repo_name":"demo",
-    "actor":"alice",
+    "user_id":"alice",
+    "repository":"demo",
+    "branch":"main",
+    "userPrompt_id":"prompt-1",
+    "prompt_text":"Explicame este codigo",
+    "metadata":{"source":"hook"},
     "raw_payload":{"prompt":"Explicame este codigo"}
   }'
+```
+
+El contrato tambien acepta eventos normalizados producidos por el logger Bash:
+
+```json
+{
+  "event_id": "evt_...",
+  "session_id": "sess_...",
+  "timestamp": "2026-05-04T10:15:00Z",
+  "event_type": "tool_use",
+  "userPrompt_id": null,
+  "parent_userPrompt_id": "up_...",
+  "actor": "developer",
+  "source": "github_copilot_hook",
+  "repository": "session-logger",
+  "branch": "main",
+  "workspace": "/workspace/project",
+  "tool_name": "bash",
+  "tool_input_summary": "rg --files",
+  "tool_result_summary": null,
+  "prompt_text": null,
+  "assistant_response_summary": null,
+  "files_touched": [],
+  "commands_executed": ["rg --files"],
+  "metadata": {},
+  "raw_payload": {}
+}
 ```
 
 Respuesta resumida:
@@ -146,112 +185,58 @@ Respuesta resumida:
 ```json
 {
   "status": "accepted",
-  "event_id": "<uuid>",
-  "event": {
-    "event_id": "<uuid>",
-    "session_id": "session-1",
-    "event_type": "userPromptSubmitted"
-  }
+  "event_id": "event-1",
+  "created": true
 }
 ```
 
-### `POST /v1/events/batch`
+Si se repite el mismo `event_id`, el caso de uso retorna el registro existente con `created=false`. La idempotencia no depende de FastAPI ni de SQLAlchemy.
 
-```bash
-curl -s -X POST http://localhost:8080/v1/events/batch \
-  -H "Authorization: Bearer dev-token" \
-  -H "Content-Type: application/json" \
-  -d '{"events":[{"session_id":"s1","event_type":"sessionStart"}]}'
-```
+## Modelo PostgreSQL
 
-Respuesta:
+Tabla `copilot_events`:
 
-```json
-{
-  "accepted": 1,
-  "rejected": 0,
-  "errors": []
-}
-```
-
-### `GET /v1/events`
-
-```bash
-curl -s -H "Authorization: Bearer dev-token" \
-  "http://localhost:8080/v1/events?event_type=userPromptSubmitted&repo_name=demo&limit=10"
-```
-
-Filtros: `session_id`, `event_type`, `repo_name`, `actor`, `from_timestamp`, `to_timestamp`, `limit`.
-
-## Modelo de datos
-
-Tabla `events`:
-
-| Columna | Tipo |
+| Campo | Tipo |
 | --- | --- |
-| `event_id` | `TEXT PRIMARY KEY` |
+| `id` | `BIGSERIAL PRIMARY KEY` |
+| `event_id` | `TEXT UNIQUE NOT NULL` |
 | `session_id` | `TEXT NOT NULL` |
 | `event_type` | `TEXT NOT NULL` |
 | `timestamp` | `TIMESTAMPTZ NOT NULL` |
-| `user_prompt` | `TEXT NULL` |
-| `prompt_hash` | `TEXT NULL` |
-| `repo_path` | `TEXT NULL` |
-| `repo_name` | `TEXT NULL` |
-| `git_branch` | `TEXT NULL` |
-| `git_commit` | `TEXT NULL` |
-| `working_directory` | `TEXT NULL` |
-| `actor` | `TEXT NULL` |
-| `files_changed` | `JSONB NOT NULL` |
+| `user_id` | `TEXT NULL` |
+| `repository` | `TEXT NULL` |
+| `branch` | `TEXT NULL` |
+| `workspace` | `TEXT NULL` |
+| `userPrompt_id` | `TEXT NULL` |
+| `parent_userPrompt_id` | `TEXT NULL` |
 | `tool_name` | `TEXT NULL` |
-| `command` | `TEXT NULL` |
+| `prompt_text` | `TEXT NULL` |
+| `assistant_response_summary` | `TEXT NULL` |
+| `tool_input_summary` | `TEXT NULL` |
+| `tool_result_summary` | `TEXT NULL` |
 | `status` | `TEXT NULL` |
-| `error` | `TEXT NULL` |
-| `raw_payload` | `JSONB NULL` |
+| `duration_ms` | `INTEGER NULL` |
+| `files_touched` | `JSONB NOT NULL` |
+| `commands_executed` | `JSONB NOT NULL` |
 | `metadata` | `JSONB NOT NULL` |
-| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` |
+| `raw_payload` | `JSONB NULL` |
+| `created_at` | `TIMESTAMPTZ NOT NULL` |
 
-Indices:
-
-- `idx_events_session_id`
-- `idx_events_event_type`
-- `idx_events_repo_name`
-- `idx_events_actor`
-- `idx_events_timestamp`
-- `idx_events_prompt_hash`
-
-## Cambiar storage
-
-Para agregar otro storage, crea una clase que implemente `domain/gateways/event_repository.py`:
-
-- `save(event)`
-- `save_many(events)`
-- `find(...)`
-
-Luego registra la implementacion en `application/container.py`. Los use cases y entrypoints no necesitan cambiar.
-
-## Seguridad y privacidad
-
-- Todos los endpoints `/v1/*` requieren `Authorization: Bearer <token>`.
-- Tokens se comparan con `secrets.compare_digest` y no se loguean.
-- El sanitizer corre en el caso de uso antes de persistir.
-- Se sanitizan `user_prompt`, `raw_payload`, `metadata`, `command` y `error`.
-- El backend no loguea prompts completos; solo `event_id`, `event_type`, `actor`, `repo_name` y estado.
-- Define retencion, acceso a tablas y backups antes de uso organizacional amplio.
+Indices incluidos: `event_id` unico, `session_id`, `timestamp`, `event_type`, `repository`, `userPrompt_id`, `parent_userPrompt_id`, `tool_name`, `(repository, timestamp)`, `(parent_userPrompt_id, event_type)`, `GIN(metadata)` y `GIN(raw_payload)`.
 
 ## Tests
 
-Unit e integracion API sin Postgres:
+Unitarios y API con repositorios fake/in-memory:
 
 ```bash
 python -m pytest backend/tests -q
 ```
 
-Prueba manual con Postgres:
+Integracion real del adapter PostgreSQL:
 
 ```bash
-cd backend
-docker compose up --build
-curl -s http://localhost:8080/health
+$env:COPILOT_LOG_BACKEND_TEST_DATABASE_URL = "postgresql+psycopg://postgres:postgres@localhost:5432/copilot_logs"
+python -m pytest backend/tests/integration/test_postgres_adapter.py -q
 ```
 
-Si se requiere automatizar integracion real con Postgres, el siguiente paso recomendado es agregar `testcontainers` o un job CI que ejecute `docker compose` antes de la suite.
+Si `COPILOT_LOG_BACKEND_TEST_DATABASE_URL` no existe, esa prueba se omite para no requerir una base externa durante la suite unitaria.

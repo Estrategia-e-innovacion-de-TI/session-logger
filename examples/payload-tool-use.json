@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-05-04T10:15:05Z",
+  "cwd": "/workspace/project",
+  "sessionId": "sess_demo_001",
+  "actor": "developer",
+  "repository": "session-logger",
+  "branch": "main",
+  "toolName": "bash",
+  "toolArgs": {
+    "command": "rg --files",
+    "description": "List repository files"
+  }
+}
+

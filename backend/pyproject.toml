@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "copilot-log-backend"
 version = "0.1.0"
-description = "Minimal FastAPI backend for centralized GitHub Copilot hook events."
+description = "FastAPI backend for centralized GitHub Copilot hook events using Clean Architecture."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -24,10 +24,11 @@ dev = [
 ]
 
 [tool.setuptools]
-package-dir = { "" = "src" }
+package-dir = { "" = "." }
 
 [tool.setuptools.packages.find]
-where = ["src"]
+where = ["."]
+include = ["app*"]
 
 [tool.pytest.ini_options]
 addopts = "-q"

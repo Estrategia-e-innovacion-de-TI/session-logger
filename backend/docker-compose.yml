@@ -25,7 +25,6 @@ services:
     environment:
       COPILOT_LOG_BACKEND_API_KEYS: dev-token
       COPILOT_LOG_BACKEND_DATABASE_URL: postgresql+psycopg://postgres:postgres@postgres:5432/copilot_logs
-      COPILOT_LOG_BACKEND_STORAGE: postgres
       COPILOT_LOG_BACKEND_MAX_BODY_MB: "2"
       COPILOT_LOG_BACKEND_ALLOW_UNKNOWN_EVENT_TYPES: "false"
       COPILOT_LOG_BACKEND_QUERY_LIMIT: "100"

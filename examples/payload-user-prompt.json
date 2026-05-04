@@ -1,0 +1,10 @@
+{
+  "timestamp": "2026-05-04T10:15:00Z",
+  "cwd": "/workspace/project",
+  "sessionId": "sess_demo_001",
+  "actor": "developer",
+  "repository": "session-logger",
+  "branch": "main",
+  "prompt": "Explica el flujo del logger y propone mejoras de observabilidad"
+}
+

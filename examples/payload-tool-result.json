@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-05-04T10:15:08Z",
+  "cwd": "/workspace/project",
+  "sessionId": "sess_demo_001",
+  "actor": "developer",
+  "repository": "session-logger",
+  "branch": "main",
+  "toolName": "bash",
+  "toolResult": {
+    "resultType": "success",
+    "output": "README.md\nhooks/session-logger.sh\nlib/payload.sh\nbackend/app/main.py"
+  },
+  "files_touched": [
+    "hooks/session-logger.sh",
+    "lib/payload.sh"
+  ]
+}
+

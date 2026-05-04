@@ -4,8 +4,8 @@
     "sessionStart": [
       {
         "type": "command",
-        "bash": "copilot-session-logger log --event sessionStart",
-        "powershell": "copilot-session-logger log --event sessionStart",
+        "bash": "bash ./hooks/session-logger.sh --event sessionStart",
+        "powershell": "bash ./hooks/session-logger.sh --event sessionStart",
         "cwd": ".",
         "timeoutSec": 5
       }
@@ -13,8 +13,8 @@
     "userPromptSubmitted": [
       {
         "type": "command",
-        "bash": "copilot-session-logger log --event userPromptSubmitted",
-        "powershell": "copilot-session-logger log --event userPromptSubmitted",
+        "bash": "bash ./hooks/session-logger.sh --event userPromptSubmitted",
+        "powershell": "bash ./hooks/session-logger.sh --event userPromptSubmitted",
         "cwd": ".",
         "timeoutSec": 5
       }
@@ -22,8 +22,8 @@
     "preToolUse": [
       {
         "type": "command",
-        "bash": "copilot-session-logger log --event preToolUse",
-        "powershell": "copilot-session-logger log --event preToolUse",
+        "bash": "bash ./hooks/session-logger.sh --event preToolUse",
+        "powershell": "bash ./hooks/session-logger.sh --event preToolUse",
         "cwd": ".",
         "timeoutSec": 5
       }
@@ -31,8 +31,8 @@
     "postToolUse": [
       {
         "type": "command",
-        "bash": "copilot-session-logger log --event postToolUse",
-        "powershell": "copilot-session-logger log --event postToolUse",
+        "bash": "bash ./hooks/session-logger.sh --event postToolUse",
+        "powershell": "bash ./hooks/session-logger.sh --event postToolUse",
         "cwd": ".",
         "timeoutSec": 5
       }
@@ -40,8 +40,8 @@
     "sessionEnd": [
       {
         "type": "command",
-        "bash": "copilot-session-logger log --event sessionEnd",
-        "powershell": "copilot-session-logger log --event sessionEnd",
+        "bash": "bash ./hooks/session-logger.sh --event sessionEnd",
+        "powershell": "bash ./hooks/session-logger.sh --event sessionEnd",
         "cwd": ".",
         "timeoutSec": 5
       }
@@ -49,8 +49,8 @@
     "errorOccurred": [
       {
         "type": "command",
-        "bash": "copilot-session-logger log --event errorOccurred",
-        "powershell": "copilot-session-logger log --event errorOccurred",
+        "bash": "bash ./hooks/session-logger.sh --event errorOccurred",
+        "powershell": "bash ./hooks/session-logger.sh --event errorOccurred",
         "cwd": ".",
         "timeoutSec": 5
       }

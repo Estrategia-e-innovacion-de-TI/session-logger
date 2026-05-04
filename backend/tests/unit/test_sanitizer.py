@@ -1,4 +1,4 @@
-from copilot_log_backend.driven_adapters.security.sanitizer import RegexSanitizer
+from app.driven_adapters.security.sanitizer import RegexSanitizer
 
 
 def test_sanitizer_redacts_common_secret_shapes() -> None:
