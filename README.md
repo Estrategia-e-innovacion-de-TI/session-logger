@@ -108,17 +108,72 @@ bash scripts/test-session-logger.sh
 
 ## Hooks De Copilot
 
-Ejemplo en `examples/copilot-hooks.json`:
+El hook se activa automaticamente en cada evento de Copilot (prompts, llamadas a herramientas, inicio/fin de sesion). Los archivos ya listos estan en `.github/hooks/session-logger/`.
+
+### Instalacion En Un Repositorio Nuevo
+
+1. Crea el directorio destino:
+
+```bash
+mkdir -p .github/hooks/session-logger
+```
+
+2. Copia el script y el archivo de configuracion:
+
+```bash
+cp hooks/session-logger.sh .github/hooks/session-logger/session-logger.sh
+cp .github/hooks/session-logger/copilot-hooks.json .github/hooks/session-logger/copilot-hooks.json
+```
+
+> Si aun no tienes el `copilot-hooks.json`, usa el ejemplo de referencia:
+> ```bash
+> cp examples/copilot-hooks.json .github/hooks/session-logger/copilot-hooks.json
+> ```
+
+3. Da permisos de ejecucion al script:
+
+```bash
+chmod +x .github/hooks/session-logger/session-logger.sh
+```
+
+4. Verifica que el hook funciona:
+
+```bash
+bash .github/hooks/session-logger/session-logger.sh doctor
+```
+
+### Estructura Esperada
+
+```text
+.github/
+  hooks/
+    session-logger/
+      copilot-hooks.json   <- archivo leido por Copilot al arrancar
+      session-logger.sh    <- ejecutable con permisos +x
+```
+
+### Referencia De copilot-hooks.json
+
+El archivo registra todos los eventos que Copilot debe interceptar. Ejemplo completo en `.github/hooks/session-logger/copilot-hooks.json`:
 
 ```json
 {
   "version": 1,
   "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "bash": ".github/hooks/session-logger/session-logger.sh --event sessionStart",
+        "powershell": ".github/hooks/session-logger/session-logger.sh --event sessionStart",
+        "cwd": ".",
+        "timeoutSec": 5
+      }
+    ],
     "userPromptSubmitted": [
       {
         "type": "command",
-        "bash": "bash ./hooks/session-logger.sh --event userPromptSubmitted",
-        "powershell": "bash ./hooks/session-logger.sh --event userPromptSubmitted",
+        "bash": ".github/hooks/session-logger/session-logger.sh --event userPromptSubmitted",
+        "powershell": ".github/hooks/session-logger/session-logger.sh --event userPromptSubmitted",
         "cwd": ".",
         "timeoutSec": 5
       }
@@ -126,6 +181,8 @@ Ejemplo en `examples/copilot-hooks.json`:
   }
 }
 ```
+
+El archivo completo cubre ademas `preToolUse`, `postToolUse`, `sessionEnd` y `errorOccurred`.
 
 ## Trazabilidad Prompt -> Eventos
 

@@ -155,7 +155,8 @@ build_normalized_event() {
   local parent_user_prompt_id="$6"
   local git_context="$7"
   local actor="$8"
-  local metadata_json="${9:-{}}"
+  local metadata_json="${9}"
+  [ -z "$metadata_json" ] && metadata_json="{}"
   local now
   local sanitized_payload
   local tool_metadata

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 # shellcheck source=../lib/logger.sh
 source "$REPO_ROOT/lib/logger.sh"
@@ -152,8 +152,7 @@ run_log() {
   normalized_event_type="$(normalize_event_type "$hook_event_type")" || return $?
   explicit_session_id="$(extract_session_id "$payload" "$SESSION_ID_OVERRIDE")" || return $?
   workspace="$(extract_working_directory "$payload")" || return $?
-  git_context="$(collect_git_context "$workspace")" || git_context='{}'
-  [ -z "$git_context" ] && git_context='{}'
+  git_context="$(collect_git_context "$workspace")" || return $?
   actor="$(extract_actor "$payload")" || return $?
   scope_key="$(build_scope_key "$git_context" "$workspace" "$actor")" || return $?
   session_id="$(resolve_session_id "$explicit_session_id" "$hook_event_type" "$scope_key" "$([ "$DRY_RUN" = "true" ] && echo false || echo true)")" || return $?
@@ -171,7 +170,7 @@ run_log() {
     json_log "warn" "invalid_metadata_json" "COPILOT_SESSION_LOGGER_METADATA_JSON ignored"
     METADATA_JSON="{}"
   fi
-  METADATA_JSON="$(echo "$METADATA_JSON" | jq -c .)" || METADATA_JSON="{}"
+  METADATA_JSON="$(sanitize_payload "$METADATA_JSON")" || return $?
 
   event_json="$(
     build_normalized_event \

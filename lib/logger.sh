@@ -64,52 +64,8 @@ safe_file_key() {
 
 collect_git_context() {
   local workspace="${1:-$PWD}"
-  local repo_path=""
-  local repo_name=""
-  local branch=""
-  local commit=""
-  local files_json="[]"
-  local error=""
-  local git_available=false
-  local is_repo=false
-
-  if command -v git >/dev/null 2>&1; then
-    git_available=true
-    if repo_path="$(git -C "$workspace" rev-parse --show-toplevel 2>/dev/null)"; then
-      is_repo=true
-      repo_name="$(basename "$repo_path")"
-      branch="$(git -C "$workspace" branch --show-current 2>/dev/null || true)"
-      commit="$(git -C "$workspace" rev-parse HEAD 2>/dev/null || true)"
-      files_json="$(
-        git -C "$workspace" status --porcelain 2>/dev/null |
-          sed -E 's/^..[[:space:]]+//' |
-          sed -E 's/^.* -> //' |
-          jq -R -s 'split("\n") | map(select(length > 0))'
-      )"
-    else
-      error="current directory is not a git repository"
-    fi
-  else
-    error="git executable not found in PATH"
-  fi
-
-  jq -cn \
-    --argjson git_available "$git_available" \
-    --argjson is_repo "$is_repo" \
-    --arg repo_path "$repo_path" \
-    --arg repo_name "$repo_name" \
-    --arg branch "$branch" \
-    --arg commit "$commit" \
-    --arg error "$error" \
-    --argjson files_changed "$files_json" \
-    '{
-      git_available:$git_available,
-      is_repo:$is_repo,
-      repo_path:($repo_path | select(length > 0)),
-      repo_name:($repo_name | select(length > 0)),
-      git_branch:($branch | select(length > 0)),
-      git_commit:($commit | select(length > 0)),
-      files_changed:$files_changed,
-      error:($error | select(length > 0))
-    }'
+  jq -c -n \
+    --arg ws "$workspace" \
+    --arg git_avail "$(command -v git >/dev/null 2>&1 && echo true || echo false)" \
+    '{git_available:($git_avail=="true"),is_repo:false,workspace:$ws}'
 }
