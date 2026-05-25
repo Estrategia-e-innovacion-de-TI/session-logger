@@ -1,0 +1,127 @@
+# =============================================================================
+# MARVIN OBSERVABILITY STACK - DOCKER COMPOSE
+# =============================================================================
+# This docker-compose provides a complete observability stack for ALL Marvin agents:
+# - backend-core
+# - code-review-agent
+# - Any future agents
+#
+# All agents should point to: OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
+# =============================================================================
+
+services:
+  # ==================================
+  # OpenTelemetry Collector
+  # Receives telemetry from all agents
+  # ==================================
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.97.0
+    container_name: marvin-otel-collector
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - "./otel-collector-config 2.yaml:/etc/otel-collector-config.yaml:ro"
+    ports:
+      - "4317:4317"   # OTLP gRPC receiver (used by agents)
+      - "4318:4318"   # OTLP HTTP receiver
+      - "8888:8888"   # Prometheus metrics exposed by the collector
+      - "8889:8889"   # Prometheus exporter metrics
+    networks:
+      - marvin-observability
+    restart: unless-stopped
+
+  # ==================================
+  # Tempo - Distributed Tracing Backend
+  # Stores traces from all agents
+  # ==================================
+  tempo:
+    image: grafana/tempo:2.10.0
+    container_name: marvin-tempo
+    command: ["-config.file=/etc/tempo.yaml"]
+    volumes:
+      - "./tempo-config 1.yaml:/etc/tempo.yaml:ro"
+      - tempo-data:/var/tempo
+    ports:
+      - "3200:3200"   # Tempo HTTP API
+      - "4317"        # OTLP gRPC receiver (internal)
+    networks:
+      - marvin-observability
+    restart: unless-stopped
+
+  # ==================================
+  # Loki - Log Aggregation Backend
+  # Stores logs from all agents
+  # ==================================
+  loki:
+    image: grafana/loki:2.9.0
+    container_name: marvin-loki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"   # Loki HTTP API
+    volumes:
+      - loki-data:/loki
+    networks:
+      - marvin-observability
+    restart: unless-stopped
+
+  # ==================================
+  # Prometheus - Metrics Storage Backend
+  # Stores metrics from all agents
+  # ==================================
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: marvin-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.enable-remote-write-receiver'
+      - '--enable-feature=exemplar-storage'
+    volumes:
+      - "./prometheus 1.yaml:/etc/prometheus/prometheus.yml:ro"
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"   # Prometheus UI
+    networks:
+      - marvin-observability
+    restart: unless-stopped
+
+  # ==================================
+  # Grafana - Unified Visualization
+  # Visualizes traces, metrics, and logs from ALL agents
+  # ==================================
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: marvin-grafana
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
+    volumes:
+      - "./grafana-datasources 1.yaml:/etc/grafana/provisioning/datasources/datasources.yaml:ro"
+      - ./grafana-dashboards.yaml:/etc/grafana/provisioning/dashboards/dashboards.yaml
+      - ./dashboards:/var/lib/grafana/dashboards
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"   # Grafana UI (http://localhost:3000)
+    networks:
+      - marvin-observability
+    depends_on:
+      - prometheus
+      - loki
+      - tempo
+    restart: unless-stopped
+
+networks:
+  marvin-observability:
+    driver: bridge
+    name: marvin-observability
+
+volumes:
+  tempo-data:
+    name: marvin-tempo-data
+  loki-data:
+    name: marvin-loki-data
+  prometheus-data:
+    name: marvin-prometheus-data
+  grafana-data:
+    name: marvin-grafana-data

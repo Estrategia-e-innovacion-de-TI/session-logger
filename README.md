@@ -51,7 +51,9 @@ hooks/session-logger.sh
         +--> lib/transport.sh
              +--> JSONL local ~/.session-logger/logs/YYYY-MM-DD/events.jsonl
              +--> POST opcional a FastAPI /api/v1/events
-             +--> fallback ~/.session-logger/queue/pending.jsonl si HTTP falla
+             +--> Push opcional a Loki /loki/api/v1/push
+             +--> OTLP opcional a Collector /v1/traces y /v1/metrics
+             +--> fallback ~/.session-logger/queue/pending.jsonl si algun transporte falla
 ```
 
 ## Logger Bash
@@ -61,6 +63,8 @@ Dependencias runtime:
 - `bash`
 - `jq`
 - `curl`
+
+En Windows se recomienda Git for Windows (Git Bash) o WSL para disponer de `bash` y `jq`. El hook de PowerShell invoca un wrapper (`.github/hooks/session-logger/session-logger.ps1`) que delega en el script Bash.
 
 El script valida las dependencias al iniciar. En modo no estricto intenta no bloquear la experiencia del desarrollador; en modo estricto falla con codigo distinto de cero.
 
@@ -100,10 +104,16 @@ bash scripts/test-session-logger.sh
 | `COPILOT_SESSION_LOGGER_HTTP_ENABLED` | `false` | Habilita envio HTTP. |
 | `COPILOT_SESSION_LOGGER_ENDPOINT` | vacio | Endpoint, normalmente `http://localhost:8080/api/v1/events`. |
 | `COPILOT_SESSION_LOGGER_API_KEY` | vacio | Token enviado como `Authorization: Bearer` y `X-Logger-Token`. |
+| `COPILOT_SESSION_LOGGER_LOKI_ENABLED` | `false` | Habilita envio directo a Loki. |
+| `COPILOT_SESSION_LOGGER_LOKI_ENDPOINT` | `http://localhost:3100/loki/api/v1/push` | Endpoint de ingestion de Loki. |
+| `COPILOT_SESSION_LOGGER_LOKI_TENANT_ID` | vacio | Tenant para Loki multitenant (`X-Scope-OrgID`). |
+| `COPILOT_SESSION_LOGGER_OTLP_ENABLED` | `false` | Habilita envio OTLP al collector de observabilidad. |
+| `COPILOT_SESSION_LOGGER_OTLP_ENDPOINT` | `http://localhost:4318` | Endpoint base OTLP HTTP (se usan `/v1/traces` y `/v1/metrics`). |
 | `COPILOT_SESSION_LOGGER_TIMEOUT_SECONDS` | `2` | Timeout de `curl`. |
 | `COPILOT_SESSION_LOGGER_REDACT_SECRETS` | `true` | Redacta secretos con jq antes de persistir/enviar. |
 | `COPILOT_SESSION_LOGGER_OFFLINE_QUEUE_ENABLED` | `true` | Guarda eventos si HTTP falla. |
 | `COPILOT_SESSION_LOGGER_ACTOR` | usuario del entorno | Actor fallback. |
+| `COPILOT_SESSION_LOGGER_COPILOT_USER` | vacio | Usuario de GitHub Copilot como metadata adicional (`metadata.copilot_user`). |
 | `COPILOT_SESSION_LOGGER_METADATA_JSON` | `{}` | Metadata adicional, sanitizada. |
 
 ## Hooks De Copilot
@@ -122,12 +132,13 @@ mkdir -p .github/hooks/session-logger
 
 ```bash
 cp hooks/session-logger.sh .github/hooks/session-logger/session-logger.sh
-cp .github/hooks/session-logger/copilot-hooks.json .github/hooks/session-logger/copilot-hooks.json
+cp .github/hooks/session-logger/session-logger.ps1 .github/hooks/session-logger/session-logger.ps1
+cp .github/hooks/copilot-hooks.json .github/hooks/copilot-hooks.json
 ```
 
 > Si aun no tienes el `copilot-hooks.json`, usa el ejemplo de referencia:
 > ```bash
-> cp examples/copilot-hooks.json .github/hooks/session-logger/copilot-hooks.json
+> cp examples/copilot-hooks.json .github/hooks/copilot-hooks.json
 > ```
 
 3. Da permisos de ejecucion al script:
@@ -164,7 +175,7 @@ El archivo registra todos los eventos que Copilot debe interceptar. Ejemplo comp
       {
         "type": "command",
         "bash": ".github/hooks/session-logger/session-logger.sh --event sessionStart",
-        "powershell": ".github/hooks/session-logger/session-logger.sh --event sessionStart",
+        "powershell": "& .github/hooks/session-logger/session-logger.ps1 -Event sessionStart",
         "cwd": ".",
         "timeoutSec": 5
       }
@@ -173,7 +184,7 @@ El archivo registra todos los eventos que Copilot debe interceptar. Ejemplo comp
       {
         "type": "command",
         "bash": ".github/hooks/session-logger/session-logger.sh --event userPromptSubmitted",
-        "powershell": ".github/hooks/session-logger/session-logger.sh --event userPromptSubmitted",
+        "powershell": "& .github/hooks/session-logger/session-logger.ps1 -Event userPromptSubmitted",
         "cwd": ".",
         "timeoutSec": 5
       }
@@ -235,6 +246,91 @@ Estado ejemplo:
 ```
 
 El backend tambien acepta nombres legacy del logger Python mientras dure la compatibilidad.
+
+## Troubleshooting
+
+### Datos no llegan a observabilidad
+
+**Sintoma**: Backend o Loki reciben eventos pero Tempo no ve trazas OTLP.
+
+**Causa posible**: En zsh, la variable de shell `status` es reservada. Si se usa directamente en scripts bash/sh, causa error silencioso.
+
+**Solucion**: Usar nombres de variables alternativos como `otlp_send_status` en lugar de `status` para OTLP send status tracking.
+
+**Verificacion**: Ejecutar con debug y revisar logs de error para "read-only variable: status".
+
+## Mapeo De Valores Por Destino
+
+El logger envia el evento normalizado a multiples destinos en paralelo segun configuracion.
+
+### Resumen Por Destino
+
+| Destino | Endpoint | Formato enviado | Cobertura de campos |
+| --- | --- | --- | --- |
+| Backend FastAPI | `POST /api/v1/events` (`COPILOT_SESSION_LOGGER_ENDPOINT`) | JSON del evento normalizado | Todos los campos del contrato normalizado. |
+| Loki | `POST /loki/api/v1/push` (`COPILOT_SESSION_LOGGER_LOKI_ENDPOINT`) | `streams[].values[][1]` con el evento normalizado serializado como JSON string | Todos los campos en el log line + labels operativos del stream. |
+| Tempo (OTLP traces) | `POST /v1/traces` sobre `COPILOT_SESSION_LOGGER_OTLP_ENDPOINT` | OTLP JSON (`resourceSpans`) | Todos los campos top-level del evento como atributos del span. |
+| Prometheus (via collector OTLP) | `POST /v1/metrics` sobre `COPILOT_SESSION_LOGGER_OTLP_ENDPOINT` | OTLP JSON (`resourceMetrics`) con contador monotonic | Subconjunto de campos como labels de `marvin_session_logger_events_total`. |
+
+### Campos Enviados A Cada Destino
+
+| Campo normalizado | Backend | Loki | Tempo (span attribute) | Prometheus (label) |
+| --- | --- | --- | --- | --- |
+| `event_id` | JSON body | Log line JSON | Si, como atributo | No |
+| `session_id` | JSON body | Log line JSON + label `session_id` | Si, como atributo | No |
+| `timestamp` | JSON body | Log line JSON | Si, como atributo | No |
+| `event_type` | JSON body | Log line JSON + label `event_type` | Si, como atributo | Si (`event_type`) |
+| `userPrompt_id` | JSON body | Log line JSON | Si, como atributo | No |
+| `parent_userPrompt_id` | JSON body | Log line JSON | Si, como atributo | No |
+| `actor` | JSON body | Log line JSON + label `actor` | Si, como atributo | No |
+| `user_id` | JSON body | Log line JSON | Si, como atributo | No |
+| `source` | JSON body | Log line JSON + label `source` | Si, como atributo | Si (`source`) |
+| `repository` | JSON body | Log line JSON + label `repository` | Si, como atributo | Si (`repository`) |
+| `branch` | JSON body | Log line JSON | Si, como atributo | Si (`branch`) |
+| `workspace` | JSON body | Log line JSON | Si, como atributo | No |
+| `tool_name` | JSON body | Log line JSON | Si, como atributo | Si (`tool_name`, con fallback `none`) |
+| `tool_input_summary` | JSON body | Log line JSON | Si, como atributo | No |
+| `tool_result_summary` | JSON body | Log line JSON | Si, como atributo | No |
+| `prompt_text` | JSON body | Log line JSON | Si, como atributo | No |
+| `assistant_response_summary` | JSON body | Log line JSON | Si, como atributo | No |
+| `files_touched` | JSON body | Log line JSON | Si, como atributo (serializado JSON string) | No |
+| `commands_executed` | JSON body | Log line JSON | Si, como atributo (serializado JSON string) | No |
+| `status` | JSON body | Log line JSON | Si, como atributo | Si (`status`, con fallback `unset`) |
+| `duration_ms` | JSON body | Log line JSON | Si, como atributo | No |
+| `metadata` | JSON body | Log line JSON | Si, como atributo (serializado JSON string) | No |
+| `metadata.copilot_user` | Dentro de `metadata` | Dentro de `metadata` | Dentro de `metadata` (JSON string) | No |
+| `raw_payload` | JSON body | Log line JSON | Si, como atributo (serializado JSON string) | No |
+| `created_at` | JSON body | Log line JSON | Si, como atributo | No |
+
+### Labels Y Campos Tecnicos Adicionales
+
+Valores adicionales que no vienen directamente del contrato normalizado:
+
+| Destino | Campo tecnico | Valor |
+| --- | --- | --- |
+| Loki | `job` | `session-logger-shell` |
+| Loki | `service_name` | `session-logger` |
+| Tempo resource | `service.name` | `session-logger` |
+| Tempo resource | `service.namespace` | `marvin` |
+| Tempo resource | `service.instance.id` | `<session_id>:<event_id>` |
+| Tempo span | `name` | `event_type` |
+| Tempo span | `kind` | `1` (INTERNAL) |
+| Tempo span | `status.code` | `1` |
+| Prom metric | `name` | `session_logger_events_total` (exportada como `marvin_session_logger_events_total`) |
+| Prom metric | `unit` | `1` |
+| Prom metric | `aggregationTemporality` | `2` (CUMULATIVE) |
+| Prom metric | `isMonotonic` | `true` |
+
+### Reglas De Tipo En OTLP (Tempo)
+
+- Strings: `stringValue`.
+- Booleanos: `boolValue`.
+- Numeros enteros: `intValue`.
+- Numeros decimales: `doubleValue`.
+- Arrays/objetos: se serializan como JSON string en `stringValue`.
+- `null`: se envia como `"null"` en `stringValue`.
+
+Esto permite conservar toda la informacion del evento en trazas, minimizando perdida semantica en OTLP JSON desde Bash.
 
 ## Backend FastAPI
 
@@ -395,6 +491,10 @@ Terminal 2:
 export COPILOT_SESSION_LOGGER_HTTP_ENABLED=true
 export COPILOT_SESSION_LOGGER_ENDPOINT=http://localhost:8080/api/v1/events
 export COPILOT_SESSION_LOGGER_API_KEY=dev-token
+export COPILOT_SESSION_LOGGER_LOKI_ENABLED=true
+export COPILOT_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push
+export COPILOT_SESSION_LOGGER_OTLP_ENABLED=true
+export COPILOT_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318
 
 bash hooks/session-logger.sh --event userPromptSubmitted \
   < examples/payload-user-prompt.json
@@ -415,6 +515,31 @@ Consultar eventos:
 ```bash
 curl -s -H "X-Logger-Token: dev-token" \
   "http://localhost:8080/api/v1/events?session_id=sess_demo_001&limit=10"
+```
+
+Consultar logs directos en Loki:
+
+```bash
+curl -G -s "http://localhost:3100/loki/api/v1/query_range" \
+  --data-urlencode 'query={job="session-logger-shell"}' \
+  --data-urlencode "limit=10" \
+  --data-urlencode "start=$(($(date +%s)-600))000000000" \
+  --data-urlencode "end=$(date +%s)000000000"
+```
+
+Consultar trazas en Tempo:
+
+```bash
+curl -G -s "http://localhost:3200/api/search" \
+  --data-urlencode 'q={ resource.service.name = "session-logger" }' \
+  --data-urlencode "limit=10"
+```
+
+Consultar metricas en Prometheus:
+
+```bash
+curl -G -s "http://localhost:9090/api/v1/query" \
+  --data-urlencode 'query=marvin_session_logger_events_total'
 ```
 
 ## Privacidad Y Alcance
