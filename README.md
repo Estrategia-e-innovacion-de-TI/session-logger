@@ -64,7 +64,9 @@ Dependencias runtime:
 - `jq`
 - `curl`
 
-En Windows se recomienda Git for Windows (Git Bash) o WSL para disponer de `bash` y `jq`. El hook de PowerShell invoca un wrapper (`.github/hooks/session-logger/session-logger.ps1`) que delega en el script Bash.
+### Windows (PowerShell Nativo)
+
+En Windows, el logger usa **PowerShell nativo sin dependencias externas** (versión 5.1+). Usar `session-logger-windows.ps1` no requiere bash, jq ni WSL. Solo usa capacidades nativas de PowerShell 5.1+ y `Invoke-WebRequest` (disponible en Windows 10+).
 
 El script valida las dependencias al iniciar. En modo no estricto intenta no bloquear la experiencia del desarrollador; en modo estricto falla con codigo distinto de cero.
 
@@ -128,11 +130,11 @@ El hook se activa automaticamente en cada evento de Copilot (prompts, llamadas a
 mkdir -p .github/hooks/session-logger
 ```
 
-2. Copia el script y el archivo de configuracion:
+2. Copia los scripts de hooks (bash para Unix, PowerShell para Windows):
 
 ```bash
 cp hooks/session-logger.sh .github/hooks/session-logger/session-logger.sh
-cp .github/hooks/session-logger/session-logger.ps1 .github/hooks/session-logger/session-logger.ps1
+cp .github/hooks/session-logger/session-logger-windows.ps1 .github/hooks/session-logger/session-logger-windows.ps1
 cp .github/hooks/copilot-hooks.json .github/hooks/copilot-hooks.json
 ```
 
