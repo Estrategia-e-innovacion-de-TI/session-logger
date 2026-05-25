@@ -93,9 +93,54 @@ function Extract-Field {
     return $Default
 }
 
+function Remove-DuplicateExtractedKeys {
+    param($Object)
+    
+    if ($Object -is [hashtable]) {
+        $keysToRemove = @()
+        foreach ($key in $Object.Keys) {
+            if ($key -match "_extracted$") {
+                $baseKey = $key -replace "_extracted$", ""
+                if ($Object.ContainsKey($baseKey) -and $Object[$baseKey] -eq $Object[$key]) {
+                    $keysToRemove += $key
+                }
+            }
+        }
+        foreach ($key in $keysToRemove) {
+            $Object.Remove($key)
+        }
+        
+        # Recursively process nested objects and arrays
+        foreach ($key in $Object.Keys) {
+            if ($Object[$key] -is [hashtable]) {
+                Remove-DuplicateExtractedKeys -Object $Object[$key]
+            }
+            elseif ($Object[$key] -is [PSCustomObject]) {
+                Remove-DuplicateExtractedKeys -Object ([hashtable]$Object[$key])
+            }
+            elseif ($Object[$key] -is [array]) {
+                foreach ($item in $Object[$key]) {
+                    if ($item -is [hashtable]) {
+                        Remove-DuplicateExtractedKeys -Object $item
+                    }
+                }
+            }
+        }
+    }
+    elseif ($Object -is [PSCustomObject]) {
+        $hashtable = @{}
+        $Object.PSObject.Properties | ForEach-Object { $hashtable[$_.Name] = $_.Value }
+        Remove-DuplicateExtractedKeys -Object $hashtable
+        return $hashtable
+    }
+    
+    return $Object
+}
+
 function Redact-Secrets {
     param($Payload)
     if (-not $RedactSecrets) {
+        Remove-DuplicateExtractedKeys -Object $Payload
         return $Payload
     }
     
@@ -111,7 +156,10 @@ function Redact-Secrets {
         $json = $json -replace $item.Pattern, $item.Replacement
     }
     
-    return ConvertFrom-Json -InputObject $json -ErrorAction SilentlyContinue
+    $sanitized = ConvertFrom-Json -InputObject $json -ErrorAction SilentlyContinue
+    Remove-DuplicateExtractedKeys -Object $sanitized
+    
+    return $sanitized
 }
 
 function Build-NormalizedEvent {
