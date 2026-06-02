@@ -40,6 +40,31 @@ if [ "$parent_id" != "$user_prompt_id" ]; then
   exit 1
 fi
 
+repo_value="$(jq -r '.repository // empty' <<< "$tool_event")"
+branch_value="$(jq -r '.branch // empty' <<< "$tool_event")"
+mode_value="$(jq -r '.mode // empty' <<< "$tool_event")"
+execution_mode_value="$(jq -r '.execution_mode // empty' <<< "$tool_event")"
+
+if [ -z "$repo_value" ] || [ "$repo_value" = "null" ]; then
+  echo "Expected repository to be present in tool event" >&2
+  exit 1
+fi
+
+if [ -z "$branch_value" ] || [ "$branch_value" = "null" ]; then
+  echo "Expected branch to be present in tool event" >&2
+  exit 1
+fi
+
+if [ "$mode_value" != "ask" ]; then
+  echo "Expected mode=ask but got $mode_value" >&2
+  exit 1
+fi
+
+if [ "$execution_mode_value" != "sync" ]; then
+  echo "Expected execution_mode=sync but got $execution_mode_value" >&2
+  exit 1
+fi
+
 log_count="$(find "$COPILOT_SESSION_LOGGER_HOME/logs" -name events.jsonl -type f -exec cat {} \; | jq -R 'fromjson?' | jq -s 'length')"
 if [ "$log_count" -lt 1 ]; then
   echo "Expected at least one JSONL event" >&2

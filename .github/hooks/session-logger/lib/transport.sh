@@ -345,7 +345,12 @@ build_loki_payload() {
               event_type: ($event.event_type // "unknown"),
               session_id: ($event.session_id // "unknown"),
               repository: ($event.repository // "unknown"),
-              actor: ($event.actor // $event.user_id // "unknown")
+              branch: ($event.branch // "unknown"),
+              mode: ($event.mode // $event.metadata.mode // "unknown"),
+              execution_mode: ($event.execution_mode // $event.metadata.execution_mode // "unknown"),
+              invocation_origin: ($event.invocation_origin // $event.metadata.invocation_origin // "unknown"),
+              actor: ($event.actor // $event.user_id // "unknown"),
+              files_added_count: ((($event.files_added // []) | length) | tostring)
             },
             values: [[$ingest_ns, ($event | tojson)]]
           }

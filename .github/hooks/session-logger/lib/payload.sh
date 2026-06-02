@@ -100,18 +100,64 @@ extract_tool_metadata() {
   local payload="$1"
   jq -c '
     def parse_json: if type == "string" then (fromjson? // .) else . end;
+    def sanitize_mode:
+      if . == null then null
+      elif type == "string" then
+        (. | ascii_downcase | gsub("[^a-z0-9]+"; "_") | gsub("^_|_$"; ""))
+      else null
+      end;
     def summarize:
       if . == null then null
       elif type == "object" then (.summary // .textResultForLlm // .output // .message // .error // tojson)
       elif type == "array" then tojson
       else tostring
       end;
-    (.toolArgs // .tool_args // .payload.toolArgs // .request.toolArgs // null | parse_json) as $tool_input |
+    (.toolArgs // .tool_args // .tool_input // .payload.toolArgs // .payload.tool_input // .request.toolArgs // null | parse_json) as $tool_input |
     (.toolResult // .tool_result // .payload.toolResult // null | parse_json) as $tool_result |
+    (.tool_name // .toolName // .tool // .payload.toolName // null) as $tool_name_raw |
+    ($tool_name_raw | if . == null then null else (tostring | ascii_downcase) end) as $tool_name |
+    (
+      .agent_name // .agentName // .payload.agent_name // .payload.agentName //
+      .request.agent_name // .request.agentName //
+      $tool_input.agent_name // $tool_input.agentName // null
+    ) as $agent_name |
+    (
+      $tool_input.filePath // $tool_input.file_path //
+      .filePath // .file_path // .payload.filePath // .payload.file_path // null
+    ) as $file_path |
+    (
+      if ($tool_name != null and ($tool_name | test("^mcp_"))) then "mcp"
+      elif (
+        $tool_name == "runsubagent" or
+        $agent_name != null or
+        (
+          .mode // .chat_mode // .chatMode // .copilot_mode // .copilotMode //
+          .invocation.mode // .payload.mode // .payload.chat_mode // .payload.chatMode //
+          .request.mode // .request.chat_mode // .request.chatMode // null
+          | sanitize_mode
+        ) == "agent"
+      ) then "custom_agent"
+      elif ($file_path != null and ($file_path | tostring | test("(^|/|\\\\)\\.github(/|\\\\)skills(/|\\\\)"; "i"))) then "skill"
+      else "standard_tool"
+      end
+    ) as $invocation_origin |
     {
-      tool_name: (.tool_name // .toolName // .tool // .payload.toolName // null),
+      tool_name: $tool_name_raw,
+      mode: (
+        .mode // .chat_mode // .chatMode // .copilot_mode // .copilotMode //
+        .invocation.mode // .payload.mode // .payload.chat_mode // .payload.chatMode //
+        .request.mode // .request.chat_mode // .request.chatMode // null | sanitize_mode
+      ),
+      execution_mode: (
+        $tool_input.mode // $tool_input.execution_mode // $tool_input.executionMode //
+        .execution_mode // .executionMode // .tool_mode // .toolMode //
+        .payload.tool_mode // .payload.toolMode //
+        .payload.tool_input.mode // .payload.tool_input.execution_mode // .payload.tool_input.executionMode //
+        .request.tool_mode // .request.toolMode // null | sanitize_mode
+      ),
       tool_input_summary: ($tool_input | summarize),
       tool_result_summary: ($tool_result | summarize),
+      invocation_origin: $invocation_origin,
       status: (
         .status // .reason // $tool_result.resultType // $tool_result.status //
         (if ($tool_result.success? == true) then "success" elif ($tool_result.success? == false) then "failure" else null end)
@@ -234,7 +280,9 @@ build_normalized_event() {
         (first([["commands_executed"], ["commands"], ["payload","commands_executed"]]) | as_string_array) as $commands |
         if $tool.command == null then $commands else ($commands + [$tool.command | tostring]) end;
       def files_array:
-        ((first([["files_touched"], ["files_changed"], ["files"], ["payload","files_touched"]]) | as_string_array) + ($git.files_changed // [])) | unique;
+        ((first([["files_touched"], ["files_changed"], ["filesChanged"], ["files"], ["payload","files_touched"], ["payload","files_changed"], ["payload","filesChanged"], ["toolResult","files_touched"], ["toolResult","files_changed"], ["toolResult","filesChanged"]]) | as_string_array) + ($git.files_changed // [])) | unique;
+      def files_added_array:
+        ((first([["files_added"], ["added_files"], ["new_files"], ["created_files"], ["filesAdded"], ["addedFiles"], ["newFiles"], ["createdFiles"], ["payload","files_added"], ["payload","added_files"], ["payload","filesAdded"], ["payload","addedFiles"], ["toolResult","files_added"], ["toolResult","added_files"], ["toolResult","filesAdded"], ["toolResult","addedFiles"]]) | as_string_array) + ($git.files_added // [])) | unique;
       def source_payload:
         first([["source"], ["payload","source"]]) | as_string;
       {
@@ -250,12 +298,16 @@ build_normalized_event() {
         repository:(first([["repository"], ["repo_name"], ["repositoryName"], ["payload","repository"]]) // $git.repo_name | as_string),
         branch:(first([["branch"], ["git_branch"], ["payload","branch"]]) // $git.git_branch | as_string),
         workspace:(first([["workspace"], ["cwd"], ["workingDirectory"], ["working_directory"], ["payload","cwd"]]) | as_string),
+        mode:($tool.mode | as_string),
+        execution_mode:($tool.execution_mode | as_string),
+        invocation_origin:($tool.invocation_origin | as_string),
         tool_name:($tool.tool_name | as_string),
         tool_input_summary:($tool.tool_input_summary | as_string),
         tool_result_summary:($tool.tool_result_summary | as_string),
         prompt_text:(first([["prompt"], ["userPrompt"], ["message"], ["input"], ["text"], ["initialPrompt"], ["request","prompt"], ["payload","prompt"]]) | as_string),
         assistant_response_summary:(first([["assistant_response_summary"], ["assistantResponse"], ["assistant_response"], ["response"], ["payload","assistant_response"]]) | as_string),
         files_touched:files_array,
+        files_added:files_added_array,
         commands_executed:command_array,
         status:($tool.status | as_string),
         duration_ms:($tool.duration_ms | if . == null or . == "" then null else tonumber? end),
@@ -264,6 +316,13 @@ build_normalized_event() {
             hook_event_type:$hook_event_type,
             logger_version:$version,
             payload_source:source_payload,
+            mode:($tool.mode | as_string),
+            execution_mode:($tool.execution_mode | as_string),
+            invocation_origin:($tool.invocation_origin | as_string),
+            is_mcp:($tool.invocation_origin == "mcp"),
+            is_skill:($tool.invocation_origin == "skill"),
+            is_custom_agent:($tool.invocation_origin == "custom_agent"),
+            files_added_count:(files_added_array | length),
             copilot_user:(if $copilot_user == "" then null else $copilot_user end),
             git:$git
           } + $extra_metadata

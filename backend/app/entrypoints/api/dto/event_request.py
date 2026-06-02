@@ -21,6 +21,9 @@ class EventRequest(BaseModel):
     repository: str | None = None
     branch: str | None = None
     workspace: str | None = None
+    mode: str | None = None
+    execution_mode: str | None = None
+    invocation_origin: str | None = None
     user_prompt_id: str | None = Field(
         default=None,
         validation_alias=AliasChoices("userPrompt_id", "user_prompt_id"),
@@ -39,6 +42,7 @@ class EventRequest(BaseModel):
     status: str | None = None
     duration_ms: int | None = None
     files_touched: list[str] = Field(default_factory=list)
+    files_added: list[str] = Field(default_factory=list)
     commands_executed: list[str] = Field(default_factory=list)
     metadata: dict[str, Any] = Field(default_factory=dict)
     raw_payload: Any = None
@@ -60,7 +64,7 @@ class EventRequest(BaseModel):
     def normalize_timestamp(cls, value: Any) -> datetime:
         return parse_timestamp(value)
 
-    @field_validator("files_touched", "commands_executed", "files_changed", mode="before")
+    @field_validator("files_touched", "files_added", "commands_executed", "files_changed", mode="before")
     @classmethod
     def normalize_string_list(cls, value: Any) -> list[str]:
         if value is None:
@@ -93,6 +97,12 @@ class EventRequest(BaseModel):
             metadata["repo_path"] = self.repo_path
         if self.git_commit and "git_commit" not in metadata:
             metadata["git_commit"] = self.git_commit
+        if self.mode:
+            metadata["mode"] = self.mode
+        if self.execution_mode:
+            metadata["execution_mode"] = self.execution_mode
+        if self.invocation_origin:
+            metadata["invocation_origin"] = self.invocation_origin
         return CopilotEvent(
             event_id=self.event_id,
             session_id=self.session_id,
@@ -112,6 +122,7 @@ class EventRequest(BaseModel):
             status=self.status,
             duration_ms=self.duration_ms,
             files_touched=self.files_touched or self.files_changed,
+            files_added=self.files_added,
             commands_executed=commands,
             metadata=metadata,
             raw_payload=self.raw_payload,

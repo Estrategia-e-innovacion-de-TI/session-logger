@@ -110,6 +110,7 @@ class CopilotEvent:
     status: str | None = None
     duration_ms: int | None = None
     files_touched: list[str] = field(default_factory=list)
+    files_added: list[str] = field(default_factory=list)
     commands_executed: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
     raw_payload: Any = None
@@ -119,6 +120,7 @@ class CopilotEvent:
         object.__setattr__(self, "timestamp", parse_timestamp(self.timestamp))
         object.__setattr__(self, "created_at", parse_timestamp(self.created_at))
         object.__setattr__(self, "files_touched", _list_of_strings(self.files_touched))
+        object.__setattr__(self, "files_added", _list_of_strings(self.files_added))
         object.__setattr__(self, "commands_executed", _list_of_strings(self.commands_executed))
         metadata = self.metadata if isinstance(self.metadata, dict) else {"value": self.metadata}
         object.__setattr__(self, "metadata", metadata)
@@ -191,6 +193,7 @@ class CopilotEvent:
             "status": self.status,
             "duration_ms": self.duration_ms,
             "files_touched": list(self.files_touched),
+            "files_added": list(self.files_added),
             "commands_executed": list(self.commands_executed),
             "metadata": dict(self.metadata),
             "raw_payload": self.raw_payload,

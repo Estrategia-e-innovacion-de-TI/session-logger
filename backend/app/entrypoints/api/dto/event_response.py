@@ -24,6 +24,9 @@ class EventResponse(BaseModel):
     repository: str | None = None
     branch: str | None = None
     workspace: str | None = None
+    mode: str | None = None
+    execution_mode: str | None = None
+    invocation_origin: str | None = None
     user_prompt_id: str | None = Field(
         default=None,
         validation_alias=AliasChoices("userPrompt_id", "user_prompt_id"),
@@ -42,6 +45,7 @@ class EventResponse(BaseModel):
     status: str | None = None
     duration_ms: int | None = None
     files_touched: list[str]
+    files_added: list[str]
     commands_executed: list[str]
     metadata: dict[str, Any]
     raw_payload: Any = None
@@ -52,6 +56,9 @@ class EventResponse(BaseModel):
         data = event.to_dict()
         data["actor"] = event.user_id
         data["source"] = event.metadata.get("source")
+        data["mode"] = event.metadata.get("mode")
+        data["execution_mode"] = event.metadata.get("execution_mode")
+        data["invocation_origin"] = event.metadata.get("invocation_origin")
         return cls(**data)
 
 

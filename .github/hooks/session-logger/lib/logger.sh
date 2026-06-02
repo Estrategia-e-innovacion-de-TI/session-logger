@@ -70,8 +70,86 @@ safe_file_key() {
 
 collect_git_context() {
   local workspace="${1:-$PWD}"
+  local probe_path="$workspace"
+  local git_available="false"
+  local is_repo="false"
+  local repo_path=""
+  local repo_name=""
+  local git_branch=""
+  local git_commit=""
+  local remote_url=""
+  local error=""
+  local files_changed="[]"
+  local files_added="[]"
+
+  if [ -f "$probe_path" ]; then
+    probe_path="$(dirname "$probe_path")"
+  fi
+  if [ -z "$probe_path" ] || [ ! -d "$probe_path" ]; then
+    probe_path="$PWD"
+  fi
+
+  if command -v git >/dev/null 2>&1; then
+    git_available="true"
+    if git -C "$probe_path" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+      is_repo="true"
+      repo_path="$(git -C "$probe_path" rev-parse --show-toplevel 2>/dev/null || true)"
+      git_branch="$(git -C "$probe_path" rev-parse --abbrev-ref HEAD 2>/dev/null || true)"
+      git_commit="$(git -C "$probe_path" rev-parse HEAD 2>/dev/null || true)"
+      remote_url="$(git -C "$probe_path" config --get remote.origin.url 2>/dev/null || true)"
+      files_changed="$({
+        git -C "$probe_path" diff --name-only --cached 2>/dev/null || true
+        git -C "$probe_path" diff --name-only 2>/dev/null || true
+        git -C "$probe_path" ls-files --others --exclude-standard 2>/dev/null || true
+      } | awk 'NF' | sort -u | jq -R -s 'split("\n") | map(select(length>0))')"
+      files_added="$({
+        git -C "$probe_path" diff --name-only --cached --diff-filter=A 2>/dev/null || true
+        git -C "$probe_path" diff --name-only --diff-filter=A 2>/dev/null || true
+        git -C "$probe_path" ls-files --others --exclude-standard 2>/dev/null || true
+      } | awk 'NF' | sort -u | jq -R -s 'split("\n") | map(select(length>0))')"
+
+      if [ "$git_branch" = "HEAD" ]; then
+        git_branch="detached"
+      fi
+      if [ -n "$repo_path" ]; then
+        repo_name="$(basename "$repo_path")"
+      fi
+      if [ -z "$repo_name" ] && [ -n "$remote_url" ]; then
+        repo_name="${remote_url##*/}"
+        repo_name="${repo_name%.git}"
+      fi
+    else
+      error="not_a_git_repository"
+    fi
+  else
+    error="git_not_available"
+  fi
+
   jq -c -n \
     --arg ws "$workspace" \
-    --arg git_avail "$(command -v git >/dev/null 2>&1 && echo true || echo false)" \
-    '{git_available:($git_avail=="true"),is_repo:false,workspace:$ws}'
+    --arg probe "$probe_path" \
+    --arg git_avail "$git_available" \
+    --arg is_repo "$is_repo" \
+    --arg repo_path "$repo_path" \
+    --arg repo_name "$repo_name" \
+    --arg git_branch "$git_branch" \
+    --arg git_commit "$git_commit" \
+    --arg remote_url "$remote_url" \
+    --arg error "$error" \
+    --argjson files_changed "$files_changed" \
+    --argjson files_added "$files_added" \
+    '{
+      git_available:($git_avail=="true"),
+      is_repo:($is_repo=="true"),
+      workspace:$ws,
+      probe_path:$probe,
+      repo_path:(if $repo_path=="" then null else $repo_path end),
+      repo_name:(if $repo_name=="" then null else $repo_name end),
+      git_branch:(if $git_branch=="" then null else $git_branch end),
+      git_commit:(if $git_commit=="" then null else $git_commit end),
+      remote_url:(if $remote_url=="" then null else $remote_url end),
+      files_changed:$files_changed,
+      files_added:$files_added,
+      error:(if $error=="" then null else $error end)
+    }'
 }

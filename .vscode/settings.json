@@ -1,0 +1,8 @@
+{
+  "github.copilot.chat.mcpServers": {
+    "github": {
+      "type": "url",
+      "url": "https://mcp.github.com/sse"
+    }
+  }
+}

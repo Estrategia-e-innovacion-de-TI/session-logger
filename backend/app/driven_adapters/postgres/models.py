@@ -44,6 +44,7 @@ class CopilotEventModel(Base):
     status: Mapped[str | None] = mapped_column(Text, nullable=True)
     duration_ms: Mapped[int | None] = mapped_column(Integer, nullable=True)
     files_touched: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
+    files_added: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     commands_executed: Mapped[list[str]] = mapped_column(JSONB, nullable=False, default=list)
     metadata_payload: Mapped[dict[str, Any]] = mapped_column(
         "metadata", JSONB, nullable=False, default=dict

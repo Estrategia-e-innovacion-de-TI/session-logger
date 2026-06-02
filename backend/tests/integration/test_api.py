@@ -60,10 +60,14 @@ def test_post_accepts_x_logger_token_and_normalized_shell_contract(sample_event_
             "source": "github_copilot_hook",
             "actor": "developer",
             "user_id": "developer",
+            "mode": "agent",
+            "execution_mode": "sync",
+            "invocation_origin": "custom_agent",
             "userPrompt_id": None,
             "parent_userPrompt_id": "up-shell-1",
             "tool_name": "bash",
             "tool_input_summary": "rg --files",
+            "files_added": ["backend/app/new_module.py"],
         }
     )
 
@@ -76,6 +80,10 @@ def test_post_accepts_x_logger_token_and_normalized_shell_contract(sample_event_
     assert stored["event_type"] == "tool_use"
     assert stored["source"] == "github_copilot_hook"
     assert stored["actor"] == "developer"
+    assert stored["mode"] == "agent"
+    assert stored["execution_mode"] == "sync"
+    assert stored["invocation_origin"] == "custom_agent"
+    assert stored["files_added"] == ["backend/app/new_module.py"]
 
 
 def test_batch_ingest_accepts_valid_and_rejects_unknown(sample_event_dict) -> None:

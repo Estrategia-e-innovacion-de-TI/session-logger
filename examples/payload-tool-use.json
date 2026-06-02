@@ -3,12 +3,14 @@
   "cwd": "/workspace/project",
   "sessionId": "sess_demo_001",
   "actor": "developer",
+  "mode": "ask",
   "repository": "session-logger",
   "branch": "main",
   "toolName": "bash",
   "toolArgs": {
     "command": "rg --files",
-    "description": "List repository files"
+    "description": "List repository files",
+    "mode": "sync"
   }
 }
 
