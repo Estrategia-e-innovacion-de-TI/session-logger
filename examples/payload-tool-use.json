@@ -10,7 +10,14 @@
   "toolArgs": {
     "command": "rg --files",
     "description": "List repository files",
-    "mode": "sync"
-  }
+    "mode": "sync",
+    "attachments": [
+      "docs/arquitectura-observabilidad.pdf",
+      "evidence/session-trace.png"
+    ]
+  },
+  "attachments": [
+    "evidence/session-trace.png"
+  ]
 }
 

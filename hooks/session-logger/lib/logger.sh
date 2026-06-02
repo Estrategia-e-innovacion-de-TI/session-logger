@@ -4,20 +4,26 @@ set -euo pipefail
 SESSION_LOGGER_VERSION="0.2.0-shell"
 SESSION_LOGGER_SOURCE="${COPILOT_SESSION_LOGGER_SOURCE:-github_copilot_hook}"
 SESSION_LOGGER_HOME="${COPILOT_SESSION_LOGGER_HOME:-$HOME/.session-logger}"
-SESSION_LOGGER_LOGS_DIR="${COPILOT_SESSION_LOGGER_LOGS_DIR:-$SESSION_LOGGER_HOME/logs}"
 SESSION_LOGGER_STATE_DIR="${COPILOT_SESSION_LOGGER_STATE_DIR:-$SESSION_LOGGER_HOME/state}"
-SESSION_LOGGER_QUEUE_DIR="${COPILOT_SESSION_LOGGER_QUEUE_DIR:-$SESSION_LOGGER_HOME/queue}"
-SESSION_LOGGER_HTTP_ENABLED="${COPILOT_SESSION_LOGGER_HTTP_ENABLED:-false}"
-SESSION_LOGGER_ENDPOINT="${COPILOT_SESSION_LOGGER_ENDPOINT:-}"
-SESSION_LOGGER_API_KEY="${COPILOT_SESSION_LOGGER_API_KEY:-${COPILOT_SESSION_LOGGER_TOKEN:-}}"
-SESSION_LOGGER_LOKI_ENABLED="${COPILOT_SESSION_LOGGER_LOKI_ENABLED:-false}"
 SESSION_LOGGER_LOKI_ENDPOINT="${COPILOT_SESSION_LOGGER_LOKI_ENDPOINT:-http://localhost:3100/loki/api/v1/push}"
 SESSION_LOGGER_LOKI_TENANT_ID="${COPILOT_SESSION_LOGGER_LOKI_TENANT_ID:-}"
-SESSION_LOGGER_OTLP_ENABLED="${COPILOT_SESSION_LOGGER_OTLP_ENABLED:-false}"
 SESSION_LOGGER_OTLP_ENDPOINT="${COPILOT_SESSION_LOGGER_OTLP_ENDPOINT:-http://localhost:4318}"
+if [ -n "${COPILOT_SESSION_LOGGER_LOKI_ENABLED:-}" ]; then
+  SESSION_LOGGER_LOKI_ENABLED="$COPILOT_SESSION_LOGGER_LOKI_ENABLED"
+elif [ -n "${COPILOT_SESSION_LOGGER_LOKI_ENDPOINT:-}" ] || [ -n "${COPILOT_SESSION_LOGGER_LOKI_TENANT_ID:-}" ]; then
+  SESSION_LOGGER_LOKI_ENABLED="true"
+else
+  SESSION_LOGGER_LOKI_ENABLED="false"
+fi
+if [ -n "${COPILOT_SESSION_LOGGER_OTLP_ENABLED:-}" ]; then
+  SESSION_LOGGER_OTLP_ENABLED="$COPILOT_SESSION_LOGGER_OTLP_ENABLED"
+elif [ -n "${COPILOT_SESSION_LOGGER_OTLP_ENDPOINT:-}" ]; then
+  SESSION_LOGGER_OTLP_ENABLED="true"
+else
+  SESSION_LOGGER_OTLP_ENABLED="false"
+fi
 SESSION_LOGGER_TIMEOUT_SECONDS="${COPILOT_SESSION_LOGGER_TIMEOUT_SECONDS:-2}"
 SESSION_LOGGER_REDACT_SECRETS="${COPILOT_SESSION_LOGGER_REDACT_SECRETS:-true}"
-SESSION_LOGGER_OFFLINE_QUEUE_ENABLED="${COPILOT_SESSION_LOGGER_OFFLINE_QUEUE_ENABLED:-true}"
 SESSION_LOGGER_ACTOR="${COPILOT_SESSION_LOGGER_ACTOR:-${GITHUB_ACTOR:-${GITHUB_USER:-${USER:-${USERNAME:-}}}}}"
 SESSION_LOGGER_COPILOT_USER="${COPILOT_SESSION_LOGGER_COPILOT_USER:-${GITHUB_COPILOT_USER:-${COPILOT_USER:-${GITHUB_USER:-${GITHUB_ACTOR:-}}}}}"
 
@@ -45,7 +51,7 @@ validate_dependencies() {
 }
 
 ensure_logger_directories() {
-  mkdir -p "$SESSION_LOGGER_LOGS_DIR" "$SESSION_LOGGER_STATE_DIR" "$SESSION_LOGGER_QUEUE_DIR"
+  mkdir -p "$SESSION_LOGGER_STATE_DIR"
 }
 
 json_log() {
@@ -80,7 +86,6 @@ collect_git_context() {
   local remote_url=""
   local error=""
   local files_changed="[]"
-  local files_added="[]"
 
   if [ -f "$probe_path" ]; then
     probe_path="$(dirname "$probe_path")"
@@ -100,11 +105,6 @@ collect_git_context() {
       files_changed="$({
         git -C "$probe_path" diff --name-only --cached 2>/dev/null || true
         git -C "$probe_path" diff --name-only 2>/dev/null || true
-        git -C "$probe_path" ls-files --others --exclude-standard 2>/dev/null || true
-      } | awk 'NF' | sort -u | jq -R -s 'split("\n") | map(select(length>0))')"
-      files_added="$({
-        git -C "$probe_path" diff --name-only --cached --diff-filter=A 2>/dev/null || true
-        git -C "$probe_path" diff --name-only --diff-filter=A 2>/dev/null || true
         git -C "$probe_path" ls-files --others --exclude-standard 2>/dev/null || true
       } | awk 'NF' | sort -u | jq -R -s 'split("\n") | map(select(length>0))')"
 
@@ -137,7 +137,7 @@ collect_git_context() {
     --arg remote_url "$remote_url" \
     --arg error "$error" \
     --argjson files_changed "$files_changed" \
-    --argjson files_added "$files_added" \
+    --argjson files_added '[]' \
     '{
       git_available:($git_avail=="true"),
       is_repo:($is_repo=="true"),

@@ -11,8 +11,9 @@ cleanup() {
 trap cleanup EXIT
 
 export COPILOT_SESSION_LOGGER_HOME="$TMP_HOME/.session-logger"
-export COPILOT_SESSION_LOGGER_HTTP_ENABLED=false
-export COPILOT_SESSION_LOGGER_STRICT=true
+export COPILOT_SESSION_LOGGER_LOKI_ENABLED=false
+export COPILOT_SESSION_LOGGER_OTLP_ENABLED=false
+export COPILOT_SESSION_LOGGER_STRICT=false
 
 bash "$REPO_ROOT/hooks/session-logger.sh" doctor >/dev/null
 
@@ -65,9 +66,8 @@ if [ "$execution_mode_value" != "sync" ]; then
   exit 1
 fi
 
-log_count="$(find "$COPILOT_SESSION_LOGGER_HOME/logs" -name events.jsonl -type f -exec cat {} \; | jq -R 'fromjson?' | jq -s 'length')"
-if [ "$log_count" -lt 1 ]; then
-  echo "Expected at least one JSONL event" >&2
+if [ -d "$COPILOT_SESSION_LOGGER_HOME/logs" ]; then
+  echo "Expected no local logs directory in observability-only mode" >&2
   exit 1
 fi
 

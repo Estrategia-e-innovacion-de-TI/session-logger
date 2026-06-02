@@ -24,7 +24,6 @@ usage() {
 Usage:
   hooks/session-logger.sh --event <hook-event> [--session-id <id>] [--dry-run]
   hooks/session-logger.sh log --event <hook-event>
-  hooks/session-logger.sh flush
   hooks/session-logger.sh doctor
 
 Required runtime dependencies: bash, jq, curl.
@@ -36,10 +35,6 @@ parse_args() {
     case "$1" in
       log)
         ACTION="log"
-        shift
-        ;;
-      flush)
-        ACTION="flush"
         shift
         ;;
       doctor)
@@ -91,20 +86,20 @@ doctor_report() {
   jq -cn \
     --arg timestamp "$(logger_now)" \
     --arg home "$SESSION_LOGGER_HOME" \
-    --arg logs "$SESSION_LOGGER_LOGS_DIR" \
     --arg state "$SESSION_LOGGER_STATE_DIR" \
-    --arg queue "$SESSION_LOGGER_QUEUE_DIR" \
-    --arg endpoint "$SESSION_LOGGER_ENDPOINT" \
-    --argjson http_enabled "$(logger_bool_true "$SESSION_LOGGER_HTTP_ENABLED" && echo true || echo false)" \
-    --argjson has_token "$([ -n "$SESSION_LOGGER_API_KEY" ] && echo true || echo false)" \
+    --arg loki_endpoint "$SESSION_LOGGER_LOKI_ENDPOINT" \
+    --arg otlp_endpoint "$SESSION_LOGGER_OTLP_ENDPOINT" \
+    --argjson loki_enabled "$(logger_bool_true "$SESSION_LOGGER_LOKI_ENABLED" && echo true || echo false)" \
+    --argjson otlp_enabled "$(logger_bool_true "$SESSION_LOGGER_OTLP_ENABLED" && echo true || echo false)" \
     '{
       timestamp:$timestamp,
       runtime:"bash",
       home_dir:$home,
-      logs_dir:$logs,
       state_dir:$state,
-      queue_dir:$queue,
-      http:{enabled:$http_enabled,endpoint:$endpoint,token_present:$has_token},
+      observability:{
+        loki:{enabled:$loki_enabled,endpoint:$loki_endpoint},
+        otlp:{enabled:$otlp_enabled,endpoint:$otlp_endpoint}
+      },
       dependencies:{
         bash:true,
         jq:true,
@@ -152,7 +147,8 @@ run_log() {
   normalized_event_type="$(normalize_event_type "$hook_event_type")" || return $?
   explicit_session_id="$(extract_session_id "$payload" "$SESSION_ID_OVERRIDE")" || return $?
   workspace="$(extract_working_directory "$payload")" || return $?
-  git_context="$(collect_git_context "$workspace")" || return $?
+  git_context="$(collect_git_context "$workspace")" || git_context='{}'
+  [ -z "$git_context" ] && git_context='{}'
   actor="$(extract_actor "$payload")" || return $?
   scope_key="$(build_scope_key "$git_context" "$workspace" "$actor")" || return $?
   session_id="$(resolve_session_id "$explicit_session_id" "$hook_event_type" "$scope_key" "$([ "$DRY_RUN" = "true" ] && echo false || echo true)")" || return $?
@@ -170,7 +166,7 @@ run_log() {
     json_log "warn" "invalid_metadata_json" "COPILOT_SESSION_LOGGER_METADATA_JSON ignored"
     METADATA_JSON="{}"
   fi
-  METADATA_JSON="$(sanitize_payload "$METADATA_JSON")" || return $?
+  METADATA_JSON="$(echo "$METADATA_JSON" | jq -c .)" || METADATA_JSON="{}"
 
   event_json="$(
     build_normalized_event \
@@ -190,11 +186,10 @@ run_log() {
     return 0
   fi
 
-  write_jsonl_event "$event_json" >/dev/null || return $?
   if [ "$normalized_event_type" = "user_prompt" ] && [ -n "$user_prompt_id" ]; then
     set_last_userPrompt_id "$session_id" "$user_prompt_id" || return $?
   fi
-  send_event_to_api "$event_json" || return $?
+  send_event_to_observability "$event_json" || return $?
 }
 
 main() {
@@ -204,10 +199,6 @@ main() {
     doctor)
       ensure_logger_directories || return $?
       doctor_report || return $?
-      ;;
-    flush)
-      ensure_logger_directories || return $?
-      flush_offline_queue || return $?
       ;;
     log)
       run_log || return $?

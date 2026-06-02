@@ -100,6 +100,29 @@ extract_tool_metadata() {
   local payload="$1"
   jq -c '
     def parse_json: if type == "string" then (fromjson? // .) else . end;
+    def normalize_text:
+      if . == null then null
+      elif type == "string" then .
+      else tostring
+      end;
+    def has_skill_marker:
+      if . == null then false
+      elif type == "string" then
+        test("(^|/|\\\\)\\.github(/|\\\\)skills(/|\\\\)|#prompt:SKILL\\.md|prompt:SKILL\\.md|\\bskills?\\b"; "i")
+      elif type == "array" then any(.[]; has_skill_marker)
+      elif type == "object" then any(to_entries[]; (.key | has_skill_marker) or (.value | has_skill_marker))
+      else false
+      end;
+    def first_skill_name:
+      if . == null then null
+      elif type == "string" then
+        (try (capture("(?i)(?:^|[\\\\/])\\.github[\\\\/]skills[\\\\/](?<name>[^\\\\/]+)[\\\\/]").name) catch null)
+      elif type == "array" then
+        reduce .[] as $item (null; if . != null then . else ($item | first_skill_name) end)
+      elif type == "object" then
+        reduce to_entries[] as $entry (null; if . != null then . else (($entry.value | first_skill_name) // ($entry.key | first_skill_name)) end)
+      else null
+      end;
     def sanitize_mode:
       if . == null then null
       elif type == "string" then
@@ -123,10 +146,33 @@ extract_tool_metadata() {
     ) as $agent_name |
     (
       $tool_input.filePath // $tool_input.file_path //
-      .filePath // .file_path // .payload.filePath // .payload.file_path // null
+      .filePath // .file_path // .payload.filePath // .payload.file_path //
+      .request.filePath // .request.file_path // null
     ) as $file_path |
     (
+      ($file_path != null and ($file_path | tostring | has_skill_marker)) or
+      ([.prompt, .userPrompt, .message, .input, .text, .initialPrompt, .request.prompt, .payload.prompt, .attachments, .payload.attachments, .request.attachments, .toolArgs, .tool_args, .tool_input, .toolResult, .tool_result, .payload.toolArgs, .payload.toolResult] | has_skill_marker)
+    ) as $skill_detected |
+    (
+      if ($tool_name != null and ($tool_name | test("^(vscode_|extension_|plugin_|plugin\\.|copilot\\.)"))) then true
+      else false
+      end
+    ) as $plugin_detected |
+    (
+      [
+        $file_path,
+        .filePath, .file_path,
+        .payload.filePath, .payload.file_path,
+        .request.filePath, .request.file_path,
+        .attachments, .payload.attachments, .request.attachments,
+        .prompt, .payload.prompt, .request.prompt,
+        .toolArgs, .tool_args, .tool_input, .payload.toolArgs
+      ] | first_skill_name
+    ) as $skill_name |
+    (
       if ($tool_name != null and ($tool_name | test("^mcp_"))) then "mcp"
+      elif $skill_detected then "skill"
+      elif $plugin_detected then "plugin"
       elif (
         $tool_name == "runsubagent" or
         $agent_name != null or
@@ -137,10 +183,17 @@ extract_tool_metadata() {
           | sanitize_mode
         ) == "agent"
       ) then "custom_agent"
-      elif ($file_path != null and ($file_path | tostring | test("(^|/|\\\\)\\.github(/|\\\\)skills(/|\\\\)"; "i"))) then "skill"
       else "standard_tool"
       end
     ) as $invocation_origin |
+    (
+      if $invocation_origin == "skill" then ($skill_name // ($agent_name | normalize_text) // ($tool_name_raw | normalize_text))
+      elif $invocation_origin == "custom_agent" then (($agent_name | normalize_text) // ($tool_name_raw | normalize_text))
+      elif $invocation_origin == "mcp" then ($tool_name_raw | normalize_text)
+      elif $invocation_origin == "plugin" then ($tool_name_raw | normalize_text)
+      else null
+      end
+    ) as $invocation_name |
     {
       tool_name: $tool_name_raw,
       mode: (
@@ -158,6 +211,11 @@ extract_tool_metadata() {
       tool_input_summary: ($tool_input | summarize),
       tool_result_summary: ($tool_result | summarize),
       invocation_origin: $invocation_origin,
+      invocation_name: $invocation_name,
+      skill_name: (if $invocation_origin == "skill" then $invocation_name else null end),
+      custom_agent_name: (if $invocation_origin == "custom_agent" then $invocation_name else null end),
+      mcp_name: (if $invocation_origin == "mcp" then $invocation_name else null end),
+      plugin_name: (if $invocation_origin == "plugin" then $invocation_name else null end),
       status: (
         .status // .reason // $tool_result.resultType // $tool_result.status //
         (if ($tool_result.success? == true) then "success" elif ($tool_result.success? == false) then "failure" else null end)
@@ -279,10 +337,43 @@ build_normalized_event() {
       def command_array:
         (first([["commands_executed"], ["commands"], ["payload","commands_executed"]]) | as_string_array) as $commands |
         if $tool.command == null then $commands else ($commands + [$tool.command | tostring]) end;
+      def parse_jsonish:
+        if type == "string" then (fromjson? // .) else . end;
+      def from_tool_paths($value):
+        ($value | parse_jsonish) as $parsed |
+        [
+          ($parsed.filePath // null),
+          ($parsed.file_path // null),
+          ($parsed.path // null),
+          ($parsed.files // null),
+          ($parsed.filePaths // null),
+          ($parsed.paths // null),
+          ($parsed.attachments // null),
+          ($parsed.attachment_files // null),
+          ($parsed.input_files // null),
+          ($parsed.context_files // null),
+          ($parsed.images // null),
+          ($parsed.imagePaths // null),
+          ($parsed.image_path // null)
+        ]
+        | map(
+            if . == null then []
+            elif type == "array" then map(tostring)
+            elif type == "string" and length > 0 then [.]
+            else []
+            end
+          )
+        | add;
       def files_array:
         ((first([["files_touched"], ["files_changed"], ["filesChanged"], ["files"], ["payload","files_touched"], ["payload","files_changed"], ["payload","filesChanged"], ["toolResult","files_touched"], ["toolResult","files_changed"], ["toolResult","filesChanged"]]) | as_string_array) + ($git.files_changed // [])) | unique;
       def files_added_array:
-        ((first([["files_added"], ["added_files"], ["new_files"], ["created_files"], ["filesAdded"], ["addedFiles"], ["newFiles"], ["createdFiles"], ["payload","files_added"], ["payload","added_files"], ["payload","filesAdded"], ["payload","addedFiles"], ["toolResult","files_added"], ["toolResult","added_files"], ["toolResult","filesAdded"], ["toolResult","addedFiles"]]) | as_string_array) + ($git.files_added // [])) | unique;
+        (
+          (first([["files_added"], ["added_files"], ["new_files"], ["created_files"], ["filesAdded"], ["addedFiles"], ["newFiles"], ["createdFiles"], ["attachments"], ["attached_files"], ["attachment_files"], ["payload","files_added"], ["payload","added_files"], ["payload","filesAdded"], ["payload","addedFiles"], ["payload","attachments"], ["payload","attached_files"], ["payload","attachment_files"], ["toolResult","files_added"], ["toolResult","added_files"], ["toolResult","filesAdded"], ["toolResult","addedFiles"]]) | as_string_array)
+          + from_tool_paths(first([["toolArgs"], ["tool_args"], ["tool_input"], ["payload","toolArgs"], ["payload","tool_input"], ["request","toolArgs"]]))
+          + from_tool_paths(first([["toolResult"], ["tool_result"], ["payload","toolResult"]]))
+        )
+        | map(select(length > 0))
+        | unique;
       def source_payload:
         first([["source"], ["payload","source"]]) | as_string;
       {
@@ -301,6 +392,7 @@ build_normalized_event() {
         mode:($tool.mode | as_string),
         execution_mode:($tool.execution_mode | as_string),
         invocation_origin:($tool.invocation_origin | as_string),
+        invocation_name:($tool.invocation_name | as_string),
         tool_name:($tool.tool_name | as_string),
         tool_input_summary:($tool.tool_input_summary | as_string),
         tool_result_summary:($tool.tool_result_summary | as_string),
@@ -319,8 +411,14 @@ build_normalized_event() {
             mode:($tool.mode | as_string),
             execution_mode:($tool.execution_mode | as_string),
             invocation_origin:($tool.invocation_origin | as_string),
+            invocation_name:($tool.invocation_name | as_string),
+            skill_name:($tool.skill_name | as_string),
+            custom_agent_name:($tool.custom_agent_name | as_string),
+            mcp_name:($tool.mcp_name | as_string),
+            plugin_name:($tool.plugin_name | as_string),
             is_mcp:($tool.invocation_origin == "mcp"),
             is_skill:($tool.invocation_origin == "skill"),
+            is_plugin:($tool.invocation_origin == "plugin"),
             is_custom_agent:($tool.invocation_origin == "custom_agent"),
             files_added_count:(files_added_array | length),
             copilot_user:(if $copilot_user == "" then null else $copilot_user end),

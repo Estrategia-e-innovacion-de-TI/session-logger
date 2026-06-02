@@ -8,7 +8,10 @@
   "toolName": "bash",
   "toolResult": {
     "resultType": "success",
-    "output": "README.md\nhooks/session-logger.sh\nlib/payload.sh\nbackend/app/main.py"
+    "output": "README.md\nhooks/session-logger.sh\nlib/payload.sh",
+    "files_added": [
+      "evidence/session-trace.png"
+    ]
   },
   "files_touched": [
     "hooks/session-logger.sh",

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/" && pwd)"
 
 # shellcheck source=../lib/logger.sh
 source "$REPO_ROOT/lib/logger.sh"
@@ -24,7 +24,6 @@ usage() {
 Usage:
   hooks/session-logger.sh --event <hook-event> [--session-id <id>] [--dry-run]
   hooks/session-logger.sh log --event <hook-event>
-  hooks/session-logger.sh flush
   hooks/session-logger.sh doctor
 
 Required runtime dependencies: bash, jq, curl.
@@ -36,10 +35,6 @@ parse_args() {
     case "$1" in
       log)
         ACTION="log"
-        shift
-        ;;
-      flush)
-        ACTION="flush"
         shift
         ;;
       doctor)
@@ -91,20 +86,20 @@ doctor_report() {
   jq -cn \
     --arg timestamp "$(logger_now)" \
     --arg home "$SESSION_LOGGER_HOME" \
-    --arg logs "$SESSION_LOGGER_LOGS_DIR" \
     --arg state "$SESSION_LOGGER_STATE_DIR" \
-    --arg queue "$SESSION_LOGGER_QUEUE_DIR" \
-    --arg endpoint "$SESSION_LOGGER_ENDPOINT" \
-    --argjson http_enabled "$(logger_bool_true "$SESSION_LOGGER_HTTP_ENABLED" && echo true || echo false)" \
-    --argjson has_token "$([ -n "$SESSION_LOGGER_API_KEY" ] && echo true || echo false)" \
+    --arg loki_endpoint "$SESSION_LOGGER_LOKI_ENDPOINT" \
+    --arg otlp_endpoint "$SESSION_LOGGER_OTLP_ENDPOINT" \
+    --argjson loki_enabled "$(logger_bool_true "$SESSION_LOGGER_LOKI_ENABLED" && echo true || echo false)" \
+    --argjson otlp_enabled "$(logger_bool_true "$SESSION_LOGGER_OTLP_ENABLED" && echo true || echo false)" \
     '{
       timestamp:$timestamp,
       runtime:"bash",
       home_dir:$home,
-      logs_dir:$logs,
       state_dir:$state,
-      queue_dir:$queue,
-      http:{enabled:$http_enabled,endpoint:$endpoint,token_present:$has_token},
+      observability:{
+        loki:{enabled:$loki_enabled,endpoint:$loki_endpoint},
+        otlp:{enabled:$otlp_enabled,endpoint:$otlp_endpoint}
+      },
       dependencies:{
         bash:true,
         jq:true,
@@ -191,11 +186,10 @@ run_log() {
     return 0
   fi
 
-  write_jsonl_event "$event_json" >/dev/null || return $?
   if [ "$normalized_event_type" = "user_prompt" ] && [ -n "$user_prompt_id" ]; then
     set_last_userPrompt_id "$session_id" "$user_prompt_id" || return $?
   fi
-  send_event_to_api "$event_json" || return $?
+  send_event_to_observability "$event_json" || return $?
 }
 
 main() {
@@ -205,10 +199,6 @@ main() {
     doctor)
       ensure_logger_directories || return $?
       doctor_report || return $?
-      ;;
-    flush)
-      ensure_logger_directories || return $?
-      flush_offline_queue || return $?
       ;;
     log)
       run_log || return $?
