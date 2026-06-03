@@ -138,7 +138,10 @@ extract_tool_metadata() {
     (.toolArgs // .tool_args // .tool_input // .payload.toolArgs // .payload.tool_input // .request.toolArgs // null | parse_json) as $tool_input |
     (.toolResult // .tool_result // .payload.toolResult // null | parse_json) as $tool_result |
     (.tool_name // .toolName // .tool // .payload.toolName // null) as $tool_name_raw |
-    ($tool_name_raw | if . == null then null else (tostring | ascii_downcase) end) as $tool_name |
+    ($tool_name_raw | if . == null then null else tostring end) as $tool_name_text |
+    ($tool_name_text | if . == null then null else ascii_downcase end) as $tool_name |
+    ($tool_name_text | if . == null then null else (sub("^[^.]+\\."; "")) end) as $tool_name_canonical_raw |
+    ($tool_name_canonical_raw | if . == null then null else ascii_downcase end) as $tool_name_canonical |
     (
       .agent_name // .agentName // .payload.agent_name // .payload.agentName //
       .request.agent_name // .request.agentName //
@@ -154,7 +157,7 @@ extract_tool_metadata() {
       ([.prompt, .userPrompt, .message, .input, .text, .initialPrompt, .request.prompt, .payload.prompt, .attachments, .payload.attachments, .request.attachments, .toolArgs, .tool_args, .tool_input, .toolResult, .tool_result, .payload.toolArgs, .payload.toolResult] | has_skill_marker)
     ) as $skill_detected |
     (
-      if ($tool_name != null and ($tool_name | test("^(vscode_|extension_|plugin_|plugin\\.|copilot\\.)"))) then true
+      if ($tool_name_canonical != null and ($tool_name_canonical | test("^(vscode_|extension_|plugin_|plugin\\.|copilot\\.)"))) then true
       else false
       end
     ) as $plugin_detected |
@@ -170,11 +173,11 @@ extract_tool_metadata() {
       ] | first_skill_name
     ) as $skill_name |
     (
-      if ($tool_name != null and ($tool_name | test("^mcp_"))) then "mcp"
+      if ($tool_name_canonical != null and ($tool_name_canonical | test("^mcp_"))) then "mcp"
       elif $skill_detected then "skill"
       elif $plugin_detected then "plugin"
       elif (
-        $tool_name == "runsubagent" or
+        $tool_name_canonical == "runsubagent" or
         $agent_name != null or
         (
           .mode // .chat_mode // .chatMode // .copilot_mode // .copilotMode //
@@ -189,8 +192,8 @@ extract_tool_metadata() {
     (
       if $invocation_origin == "skill" then ($skill_name // ($agent_name | normalize_text) // ($tool_name_raw | normalize_text))
       elif $invocation_origin == "custom_agent" then (($agent_name | normalize_text) // ($tool_name_raw | normalize_text))
-      elif $invocation_origin == "mcp" then ($tool_name_raw | normalize_text)
-      elif $invocation_origin == "plugin" then ($tool_name_raw | normalize_text)
+      elif $invocation_origin == "mcp" then (($tool_name_canonical_raw // $tool_name_raw) | normalize_text)
+      elif $invocation_origin == "plugin" then (($tool_name_canonical_raw // $tool_name_raw) | normalize_text)
       else null
       end
     ) as $invocation_name |

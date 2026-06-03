@@ -15,23 +15,23 @@ export COPILOT_SESSION_LOGGER_LOKI_ENABLED=false
 export COPILOT_SESSION_LOGGER_OTLP_ENABLED=false
 export COPILOT_SESSION_LOGGER_STRICT=false
 
-bash "$REPO_ROOT/hooks/session-logger.sh" doctor >/dev/null
+bash "$REPO_ROOT/hooks/session-logger/session-logger.sh" doctor >/dev/null
 
 prompt_event="$(
-  bash "$REPO_ROOT/hooks/session-logger.sh" --event userPromptSubmitted --dry-run \
+  bash "$REPO_ROOT/hooks/session-logger/session-logger.sh" --event userPromptSubmitted --dry-run \
     < "$REPO_ROOT/examples/payload-user-prompt.json"
 )"
 
 session_id="$(jq -r '.session_id' <<< "$prompt_event")"
 
-bash "$REPO_ROOT/hooks/session-logger.sh" --event userPromptSubmitted \
+bash "$REPO_ROOT/hooks/session-logger/session-logger.sh" --event userPromptSubmitted \
   < "$REPO_ROOT/examples/payload-user-prompt.json" >/dev/null
 
 state_file="$COPILOT_SESSION_LOGGER_HOME/state/$session_id.json"
 user_prompt_id="$(jq -r '.last_userPrompt_id' "$state_file")"
 
 tool_event="$(
-  bash "$REPO_ROOT/hooks/session-logger.sh" --event preToolUse --session-id "$session_id" --dry-run \
+  bash "$REPO_ROOT/hooks/session-logger/session-logger.sh" --event preToolUse --session-id "$session_id" --dry-run \
     < "$REPO_ROOT/examples/payload-tool-use.json"
 )"
 

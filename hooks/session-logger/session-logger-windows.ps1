@@ -405,7 +405,10 @@ function Main {
 
     $eventType = Normalize-EventType -EventType $Event
     $toolNameRaw = Get-First -Object $payload -Paths @(@('tool_name'), @('toolName'), @('tool'), @('payload','toolName'))
-    $toolName = if ([string]::IsNullOrWhiteSpace([string]$toolNameRaw)) { $null } else { ([string]$toolNameRaw).ToLowerInvariant() }
+    $toolNameText = if ([string]::IsNullOrWhiteSpace([string]$toolNameRaw)) { $null } else { [string]$toolNameRaw }
+    $toolName = if ([string]::IsNullOrWhiteSpace([string]$toolNameText)) { $null } else { $toolNameText.ToLowerInvariant() }
+    $toolNameCanonicalRaw = if ([string]::IsNullOrWhiteSpace([string]$toolNameText)) { $null } else { ($toolNameText -replace '^[^.]+\.', '') }
+    $toolNameCanonical = if ([string]::IsNullOrWhiteSpace([string]$toolNameCanonicalRaw)) { $null } else { $toolNameCanonicalRaw.ToLowerInvariant() }
     $agentName = Get-First -Object $payload -Paths @(@('agent_name'), @('agentName'), @('payload','agent_name'), @('payload','agentName'), @('request','agent_name'), @('request','agentName'))
     $modeRaw = Get-First -Object $payload -Paths @(@('mode'), @('chat_mode'), @('chatMode'), @('copilot_mode'), @('copilotMode'), @('invocation','mode'), @('payload','mode'), @('payload','chat_mode'), @('payload','chatMode'), @('request','mode'), @('request','chat_mode'), @('request','chatMode'))
     $mode = if ([string]::IsNullOrWhiteSpace([string]$modeRaw)) { $null } else { (([string]$modeRaw) -replace '[^a-zA-Z0-9]+', '_').Trim('_').ToLowerInvariant() }
@@ -425,7 +428,7 @@ function Main {
             (Get-ValueByPath -Object $payload -Path @('payload','toolResult'))
         )
     }
-    $pluginDetected = ($null -ne $toolName -and $toolName -match '^(vscode_|extension_|plugin_|plugin\.|copilot\.)')
+    $pluginDetected = ($null -ne $toolNameCanonical -and $toolNameCanonical -match '^(vscode_|extension_|plugin_|plugin\.|copilot\.)')
     $skillName = Get-SkillNameFromValue -Value @(
         $filePathCandidate,
         $payload.attachments,
@@ -439,7 +442,7 @@ function Main {
         $payload.tool_input,
         (Get-ValueByPath -Object $payload -Path @('payload','toolArgs'))
     )
-    $invocationOrigin = if ($null -ne $toolName -and $toolName -match '^mcp_') {
+    $invocationOrigin = if ($null -ne $toolNameCanonical -and $toolNameCanonical -match '^mcp_') {
         'mcp'
     }
     elseif ($skillDetected) {
@@ -448,7 +451,7 @@ function Main {
     elseif ($pluginDetected) {
         'plugin'
     }
-    elseif ($toolName -eq 'runsubagent' -or -not [string]::IsNullOrWhiteSpace([string]$agentName) -or $mode -eq 'agent') {
+    elseif ($toolNameCanonical -eq 'runsubagent' -or -not [string]::IsNullOrWhiteSpace([string]$agentName) -or $mode -eq 'agent') {
         'custom_agent'
     }
     else {
@@ -464,7 +467,7 @@ function Main {
         else { [string]$toolNameRaw }
     }
     elseif ($invocationOrigin -eq 'mcp' -or $invocationOrigin -eq 'plugin') {
-        [string]$toolNameRaw
+        if (-not [string]::IsNullOrWhiteSpace([string]$toolNameCanonicalRaw)) { [string]$toolNameCanonicalRaw } else { [string]$toolNameRaw }
     }
     else {
         $null
