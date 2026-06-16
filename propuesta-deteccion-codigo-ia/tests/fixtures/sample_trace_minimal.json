@@ -1,0 +1,32 @@
+[
+  {
+    "timestamp": "2026-06-10T20:10:00Z",
+    "sessionId": "sess-fixture-001",
+    "event_type": "user_prompt",
+    "repository": "quantum-computing-experiments",
+    "branch": "main",
+    "git_commit": "abc123",
+    "prompt": "Genera codigo Python para add_numbers y modifica summary_report.py",
+    "assistant_response": "```python\ndef add_numbers(a, b):\n    return a + b\n```",
+    "toolName": "replace_string_in_file",
+    "toolArgs": {
+      "filePath": "summary_report.py",
+      "newString": "def add_numbers(a, b):\n    return a + b\n"
+    },
+    "files_touched": [
+      "summary_report.py"
+    ],
+    "commands_executed": [
+      "pytest tests"
+    ]
+  },
+  {
+    "timestamp": "2026-06-10T20:12:00Z",
+    "sessionId": "sess-fixture-001",
+    "event_type": "assistant_message",
+    "repository": "quantum-computing-experiments",
+    "branch": "main",
+    "prompt": "NO generes codigo. Explica el archivo.",
+    "files_touched": []
+  }
+]

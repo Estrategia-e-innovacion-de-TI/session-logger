@@ -1,0 +1,40 @@
+{
+  "cells": [
+    {
+      "cell_type": "markdown",
+      "metadata": {
+        "id": "volatile-markdown"
+      },
+      "source": [
+        "# Demo"
+      ]
+    },
+    {
+      "cell_type": "code",
+      "execution_count": 3,
+      "metadata": {
+        "id": "volatile-code"
+      },
+      "outputs": [
+        {
+          "output_type": "stream",
+          "name": "stdout",
+          "text": [
+            "volatile output\n"
+          ]
+        }
+      ],
+      "source": [
+        "import math\n",
+        "result = math.sqrt(4)\n"
+      ]
+    }
+  ],
+  "metadata": {
+    "kernelspec": {
+      "name": "python3"
+    }
+  },
+  "nbformat": 4,
+  "nbformat_minor": 5
+}

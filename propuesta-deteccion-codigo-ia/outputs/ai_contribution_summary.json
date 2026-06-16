@@ -1,0 +1,42 @@
+{
+  "trace_event_count": 13,
+  "evidence_summary": {
+    "total_evidence_items": 24,
+    "evidence_by_type": {
+      "weak_indirect_evidence": 2,
+      "temporal_evidence": 9,
+      "assistant_text_evidence": 3,
+      "command_evidence": 4,
+      "file_touch_evidence": 5,
+      "direct_code_evidence": 1
+    },
+    "files": [
+      "/Users/jomaver/Desktop/Code/quantum-computing-experiments/summary_report.py"
+    ],
+    "sessions": [
+      "7cff7416-d549-4b64-b6e5-8ec0b762208e",
+      "e33c4901-2930-4a47-b54d-f08810da2f58"
+    ]
+  },
+  "commit_count": 1,
+  "commit_scores": [
+    {
+      "commit_hash": "dry-run-fixture",
+      "author": "fixture",
+      "date": "2026-06-10T00:00:00Z",
+      "message": "Dry-run fixture commit",
+      "files_modified": "summary_report.py",
+      "lines_added": 6,
+      "lines_deleted": 0,
+      "supported_added_lines": 6,
+      "best_similarity_score": 0.0471,
+      "ai_min_percent": 0.0,
+      "ai_max_percent": 25.0,
+      "confidence_score": 1.0,
+      "confidence_label": "medium_ai_evidence",
+      "evidence_types": "assistant_text_evidence|command_evidence|direct_code_evidence|file_touch_evidence|temporal_evidence|weak_indirect_evidence",
+      "explanation": "AI_min uses exact matches only. AI_max weights exact, fuzzy, structural, and indirect evidence against total added lines."
+    }
+  ],
+  "method": "range_estimate_not_absolute_attribution"
+}

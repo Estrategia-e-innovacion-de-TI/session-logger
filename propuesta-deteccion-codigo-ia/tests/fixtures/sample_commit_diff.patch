@@ -1,0 +1,11 @@
+diff --git a/summary_report.py b/summary_report.py
+index 1111111..2222222 100644
+--- a/summary_report.py
++++ b/summary_report.py
+@@ -0,0 +1,6 @@
++def add_numbers(a, b):
++    """Return the sum of two numbers."""
++    if a is None or b is None:
++        raise ValueError("Inputs are required.")
++    return a + b
++
