@@ -1,0 +1,75 @@
+{
+  "trace_files": [
+    "EscenarioD/Trace-2c90f4-2026-06-18 11_34_00.json",
+    "EscenarioD/Trace-2e0bd9-2026-06-18 11_33_47.json",
+    "EscenarioD/Trace-311208-2026-06-18 11_33_24.json",
+    "EscenarioD/Trace-3c822d-2026-06-18 11_33_39.json",
+    "EscenarioD/Trace-3c822d-2026-06-18 11_33_41.json",
+    "EscenarioD/Trace-444b8f-2026-06-18 11_33_42.json",
+    "EscenarioD/Trace-44c018-2026-06-18 11_33_53.json",
+    "EscenarioD/Trace-60f3f2-2026-06-18 11_33_26.json",
+    "EscenarioD/Trace-6459a0-2026-06-18 11_33_28.json",
+    "EscenarioD/Trace-6a2c09-2026-06-18 11_33_35.json",
+    "EscenarioD/Trace-6a2c09-2026-06-18 11_33_37.json",
+    "EscenarioD/Trace-849394-2026-06-18 11_33_51.json",
+    "EscenarioD/Trace-b2b4ec-2026-06-18 11_34_04.json",
+    "EscenarioD/Trace-b5384d-2026-06-18 11_33_30.json",
+    "EscenarioD/Trace-b99fbf-2026-06-18 11_33_56.json",
+    "EscenarioD/Trace-cca789-2026-06-18 11_33_33.json",
+    "EscenarioD/Trace-da0b56-2026-06-18 11_34_02.json",
+    "EscenarioD/Trace-db1789-2026-06-18 11_33_58.json",
+    "EscenarioD/Trace-dd2451-2026-06-18 11_33_49.json",
+    "EscenarioD/Trace-e8fe3b-2026-06-18 11_33_21.json",
+    "EscenarioD/Trace-fc0b89-2026-06-18 11_33_46.json"
+  ],
+  "target_repository": {
+    "name": "quantum-computing-experiments",
+    "owner": "Estrategia-e-innovacion-de-TI",
+    "local_path": "../../quantum-computing-experiments",
+    "branch": "test",
+    "commit": null,
+    "commit_range": null
+  },
+  "analysis": {
+    "include_notebooks": true,
+    "include_notebook_outputs": false,
+    "similarity_threshold": 0.72,
+    "temporal_window_minutes": 180
+  },
+  "scoring_weights": {
+    "exact_match": 1.0,
+    "fuzzy_match": 0.75,
+    "structural_match": 0.5,
+    "indirect_evidence": 0.25
+  },
+  "confidence_ranges": [
+    {
+      "label": "muy_bajo",
+      "min_ai_percent": 0.0,
+      "min_confidence_score": 0.0
+    },
+    {
+      "label": "bajo",
+      "min_ai_percent": 20.0,
+      "min_confidence_score": 0.4
+    },
+    {
+      "label": "medio",
+      "min_ai_percent": 40.0,
+      "min_confidence_score": 0.55
+    },
+    {
+      "label": "alto",
+      "min_ai_percent": 60.0,
+      "min_confidence_score": 0.7
+    },
+    {
+      "label": "muy_alto",
+      "min_ai_percent": 75.0,
+      "min_confidence_score": 0.85
+    }
+  ],
+  "outputs": {
+    "directory": "outputs"
+  }
+}

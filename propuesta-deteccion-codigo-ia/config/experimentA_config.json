@@ -1,0 +1,67 @@
+{
+  "trace_files": [
+    "EscenarioA/Trace-12e51b-2026-06-18 09_10_45.json",
+    "EscenarioA/Trace-1863b0-2026-06-18 09_10_54.json",
+    "EscenarioA/Trace-224b1e-2026-06-18 09_10_16.json",
+    "EscenarioA/Trace-271e1a-2026-06-18 09_10_19.json",
+    "EscenarioA/Trace-2cb635-2026-06-18 09_10_50.json",
+    "EscenarioA/Trace-40f3d2-2026-06-18 09_10_10.json",
+    "EscenarioA/Trace-7d3801-2026-06-18 09_10_23.json",
+    "EscenarioA/Trace-8a4f4a-2026-06-18 09_10_48.json",
+    "EscenarioA/Trace-9196da-2026-06-18 09_10_41.json",
+    "EscenarioA/Trace-b59818-2026-06-18 09_10_07.json",
+    "EscenarioA/Trace-bef58a-2026-06-18 09_11_00.json",
+    "EscenarioA/Trace-c30b9a-2026-06-18 09_10_56.json",
+    "EscenarioA/Trace-d8fc67-2026-06-18 09_10_02.json"
+  ],
+  "target_repository": {
+    "name": "quantum-computing-experiments",
+    "owner": "Estrategia-e-innovacion-de-TI",
+    "local_path": "../../quantum-computing-experiments",
+    "branch": "test",
+    "commit": null,
+    "commit_range": null
+  },
+  "analysis": {
+    "include_notebooks": true,
+    "include_notebook_outputs": false,
+    "similarity_threshold": 0.72,
+    "temporal_window_minutes": 180
+  },
+  "scoring_weights": {
+    "exact_match": 1.0,
+    "fuzzy_match": 0.75,
+    "structural_match": 0.5,
+    "indirect_evidence": 0.25
+  },
+  "confidence_ranges": [
+    {
+      "label": "muy_bajo",
+      "min_ai_percent": 0.0,
+      "min_confidence_score": 0.0
+    },
+    {
+      "label": "bajo",
+      "min_ai_percent": 20.0,
+      "min_confidence_score": 0.4
+    },
+    {
+      "label": "medio",
+      "min_ai_percent": 40.0,
+      "min_confidence_score": 0.55
+    },
+    {
+      "label": "alto",
+      "min_ai_percent": 60.0,
+      "min_confidence_score": 0.7
+    },
+    {
+      "label": "muy_alto",
+      "min_ai_percent": 80.0,
+      "min_confidence_score": 0.85
+    }
+  ],
+  "outputs": {
+    "directory": "outputs"
+  }
+}

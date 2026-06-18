@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Iterable
+from typing import Any, Iterable
 
 
 DEFAULT_WEIGHTS = {
@@ -14,12 +14,23 @@ DEFAULT_WEIGHTS = {
 }
 
 
+DEFAULT_CONFIDENCE_RANGES = [
+    {"label": "muy_bajo", "min_ai_percent": 0.0, "min_confidence_score": 0.0},
+    {"label": "bajo", "min_ai_percent": 20.0, "min_confidence_score": 0.40},
+    {"label": "medio", "min_ai_percent": 40.0, "min_confidence_score": 0.55},
+    {"label": "alto", "min_ai_percent": 60.0, "min_confidence_score": 0.70},
+    {"label": "muy_alto", "min_ai_percent": 80.0, "min_confidence_score": 0.85},
+]
+
+
 @dataclass
 class ContributionScore:
     ai_min_percent: float
     ai_max_percent: float
+    ai_non_strict_percent: float
     confidence_score: float
     confidence_label: str
+    confidence_range_label: str
     evidence_types: list[str]
     explanation: str
 
@@ -35,6 +46,7 @@ def score_contribution(
     indirect_evidence_lines: int,
     evidence_types: Iterable[str],
     weights: dict[str, float] | None = None,
+    confidence_ranges: list[dict[str, Any]] | None = None,
 ) -> ContributionScore:
     """Calculate a defensible AI contribution range.
 
@@ -47,8 +59,10 @@ def score_contribution(
         return ContributionScore(
             ai_min_percent=0.0,
             ai_max_percent=0.0,
+            ai_non_strict_percent=0.0,
             confidence_score=0.0,
             confidence_label="no_evidence",
+            confidence_range_label="sin_evidencia",
             evidence_types=evidence_type_list,
             explanation="No added lines were available for attribution.",
         )
@@ -66,18 +80,56 @@ def score_contribution(
     )
     ai_max = min(1.0, weighted_lines / total_added_lines)
     confidence_score = _confidence_score(evidence_type_list, ai_max, total_added_lines)
+    ai_non_strict_percent = round(ai_max * 100, 2)
+    rounded_confidence = round(confidence_score, 3)
 
     return ContributionScore(
         ai_min_percent=round(ai_min * 100, 2),
-        ai_max_percent=round(ai_max * 100, 2),
-        confidence_score=round(confidence_score, 3),
+        ai_max_percent=ai_non_strict_percent,
+        ai_non_strict_percent=ai_non_strict_percent,
+        confidence_score=rounded_confidence,
         confidence_label=_label(ai_max, confidence_score, evidence_type_list),
+        confidence_range_label=map_confidence_range(ai_non_strict_percent, rounded_confidence, confidence_ranges),
         evidence_types=evidence_type_list,
         explanation=(
             "AI_min uses exact matches only. AI_max weights exact, fuzzy, "
             "structural, and indirect evidence against total added lines."
         ),
     )
+
+
+def map_confidence_range(
+    ai_percent: float,
+    confidence_score: float,
+    confidence_ranges: list[dict[str, Any]] | None = None,
+) -> str:
+    """Map non-strict AI percentage to a configured confidence range label."""
+
+    ranges = _normalize_confidence_ranges(confidence_ranges)
+    for item in ranges:
+        if ai_percent >= item["min_ai_percent"] and confidence_score >= item["min_confidence_score"]:
+            return item["label"]
+    return "por_debajo_del_umbral"
+
+
+def _normalize_confidence_ranges(confidence_ranges: list[dict[str, Any]] | None) -> list[dict[str, float | str]]:
+    raw = confidence_ranges or DEFAULT_CONFIDENCE_RANGES
+    normalized: list[dict[str, float | str]] = []
+
+    for item in raw:
+        label = str(item.get("label", "sin_etiqueta"))
+        min_ai_percent = float(item.get("min_ai_percent", 0.0))
+        min_confidence_score = float(item.get("min_confidence_score", 0.0))
+        normalized.append(
+            {
+                "label": label,
+                "min_ai_percent": min_ai_percent,
+                "min_confidence_score": min_confidence_score,
+            }
+        )
+
+    normalized.sort(key=lambda entry: (entry["min_ai_percent"], entry["min_confidence_score"]), reverse=True)
+    return normalized
 
 
 def _confidence_score(evidence_types: list[str], ai_max: float, total_added_lines: int) -> float:

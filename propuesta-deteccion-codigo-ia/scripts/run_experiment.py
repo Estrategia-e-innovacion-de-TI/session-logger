@@ -56,9 +56,9 @@ def analyze(
 ) -> tuple[dict[str, Any], list[dict[str, Any]], list[dict[str, Any]]]:
     analysis = config.get("analysis", {})
     weights = config.get("scoring_weights", {})
+    confidence_ranges = config.get("confidence_ranges", [])
     threshold = float(analysis.get("similarity_threshold", 0.72))
     include_notebooks = bool(analysis.get("include_notebooks", True))
-    evidence_text = "\n\n".join(_texts_for_similarity(evidence))
     evidence_types = [item.evidence_type for item in evidence]
 
     rows_by_commit: list[dict[str, Any]] = []
@@ -76,6 +76,7 @@ def analyze(
         for file_diff in supported_files:
             added_lines = [line for hunk in file_diff.hunks for line in hunk.added_lines]
             final_text = "\n".join(added_lines)
+            evidence_text = "\n\n".join(_texts_for_similarity(evidence, file_diff.path))
             similarity = compare_code(evidence_text, final_text, threshold=threshold)
             direct_file_evidence = _evidence_for_file(evidence, file_diff.path)
             indirect_lines = len(added_lines) if direct_file_evidence else 0
@@ -87,6 +88,7 @@ def analyze(
                 indirect_evidence_lines=indirect_lines,
                 evidence_types=evidence_types,
                 weights=weights,
+                confidence_ranges=confidence_ranges,
             )
 
             rows_by_file.append(
@@ -102,8 +104,10 @@ def analyze(
                     "block_similarity_score": similarity.block_similarity_score,
                     "ai_min_percent": score.ai_min_percent,
                     "ai_max_percent": score.ai_max_percent,
+                    "ai_non_strict_percent": score.ai_non_strict_percent,
                     "confidence_score": score.confidence_score,
                     "confidence_label": score.confidence_label,
+                    "confidence_range_label": score.confidence_range_label,
                     "evidence_types": "|".join(score.evidence_types),
                     "explanation": score.explanation,
                 }
@@ -124,6 +128,7 @@ def analyze(
             indirect_evidence_lines=commit_indirect,
             evidence_types=evidence_types,
             weights=weights,
+            confidence_ranges=confidence_ranges,
         )
         rows_by_commit.append(
             {
@@ -138,8 +143,10 @@ def analyze(
                 "best_similarity_score": best_similarity,
                 "ai_min_percent": commit_score.ai_min_percent,
                 "ai_max_percent": commit_score.ai_max_percent,
+                "ai_non_strict_percent": commit_score.ai_non_strict_percent,
                 "confidence_score": commit_score.confidence_score,
                 "confidence_label": commit_score.confidence_label,
+                "confidence_range_label": commit_score.confidence_range_label,
                 "evidence_types": "|".join(commit_score.evidence_types),
                 "explanation": commit_score.explanation,
             }
@@ -257,13 +264,36 @@ def _commit_from_patch_fixture(patch_path: Path) -> CommitDiff:
     )
 
 
-def _texts_for_similarity(evidence: list[AIEvidence]) -> list[str]:
+def _texts_for_similarity(evidence: list[AIEvidence], file_path: str | None = None) -> list[str]:
     texts: list[str] = []
+    fallback_texts: list[str] = []
+
     for item in evidence:
-        texts.extend(item.snippets)
-        if item.evidence_type == "assistant_text_evidence":
-            texts.extend(item.snippets)
-    return [text for text in texts if text]
+        snippet_texts = [text for text in item.snippets if text]
+        if not snippet_texts:
+            continue
+
+        fallback_texts.extend(snippet_texts)
+
+        if not file_path:
+            texts.extend(snippet_texts)
+            continue
+
+        if _evidence_matches_file(item, file_path):
+            texts.extend(snippet_texts)
+
+    return texts or fallback_texts
+
+
+def _evidence_matches_file(item: AIEvidence, file_path: str) -> bool:
+    normalized = file_path.replace("\\", "/").lower()
+    basename = Path(file_path).name.lower()
+    return any(_file_matches(candidate, normalized, basename) for candidate in item.files)
+
+
+def _file_matches(candidate_path: str, normalized: str, basename: str) -> bool:
+    candidate = candidate_path.replace("\\", "/").lower()
+    return normalized in candidate or basename in candidate
 
 
 def _evidence_for_file(evidence: list[AIEvidence], file_path: str) -> bool:
@@ -339,8 +369,8 @@ def _render_report(
     if rows_by_commit:
         for row in rows_by_commit:
             lines.append(
-                f"- `{row['commit_hash']}`: AI range {row['ai_min_percent']}%-{row['ai_max_percent']}%, "
-                f"confidence `{row['confidence_label']}`, files `{row['files_modified']}`"
+                f"- `{row['commit_hash']}`: AI no estricta {row['ai_non_strict_percent']}%, "
+                f"rango `{row['confidence_range_label']}`, confianza `{row['confidence_label']}`, files `{row['files_modified']}`"
             )
     else:
         lines.append("- No commit results were produced.")
@@ -359,7 +389,8 @@ def _render_report(
         for row in rows_by_file:
             lines.append(
                 f"- `{row['file_path']}`: {row['added_lines']} added lines, "
-                f"best similarity {row['best_similarity_score']}, AI range {row['ai_min_percent']}%-{row['ai_max_percent']}%."
+                f"best similarity {row['best_similarity_score']}, AI no estricta {row['ai_non_strict_percent']}%, "
+                f"rango {row['confidence_range_label']}."
             )
     return "\n".join(lines) + "\n"
 

@@ -1,0 +1,43 @@
+{
+  "trace_event_count": 8,
+  "evidence_summary": {
+    "total_evidence_items": 13,
+    "evidence_by_type": {
+      "command_evidence": 2,
+      "assistant_text_evidence": 4,
+      "temporal_evidence": 5,
+      "file_touch_evidence": 1,
+      "weak_indirect_evidence": 1
+    },
+    "files": [
+      "[\"propuesta-deteccion-codigo-ia/EXPERIMENTO_ESCENARIO_A.md\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-12e51b-2026-06-18 09_10_45.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-1863b0-2026-06-18 09_10_54.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-224b1e-2026-06-18 09_10_16.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-271e1a-2026-06-18 09_10_19.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-2cb635-2026-06-18 09_10_50.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-40f3d2-2026-06-18 09_10_10.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-7d3801-2026-06-18 09_10_23.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-8a4f4a-2026-06-18 09_10_48.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-9196da-2026-06-18 09_10_41.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-b59818-2026-06-18 09_10_07.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-bef58a-2026-06-18 09_11_00.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-c30b9a-2026-06-18 09_10_56.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-d8fc67-2026-06-18 09_10_02.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-065e96-2026-06-18 10_48_28.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-065e96-2026-06-18 10_48_33.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-3029dd-2026-06-18 10_48_14.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-3c0c2b-2026-06-18 10_49_05.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-524f25-2026-06-18 10_48_58.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-614938-2026-06-18 10_48_26.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-79ce32-2026-06-18 10_49_08.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-905cff-2026-06-18 10_48_49.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-90e4d5-2026-06-18 10_48_23.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-90e4d5-2026-06-18 10_48_24.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-b2a05c-2026-06-18 10_48_20.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Tr"
+    ],
+    "sessions": [
+      "c8d61ab8-b5fa-4510-850c-2372dcc0d129",
+      "efbd273a-72fe-4700-9f0c-5d2f9d4670ca"
+    ]
+  },
+  "commit_count": 1,
+  "commit_scores": [
+    {
+      "commit_hash": "efac6efc528b847f3efbf51157cd1b5bb612366c",
+      "author": "JoseMVergara",
+      "date": "2026-06-18T11:15:11-05:00",
+      "message": "escenario C, pregunta conceptual a copilot y escritura manual",
+      "files_modified": "scenario_c_manual.py",
+      "lines_added": 18,
+      "lines_deleted": 0,
+      "supported_added_lines": 18,
+      "best_similarity_score": 0.0528,
+      "ai_min_percent": 0.0,
+      "ai_max_percent": 0.0,
+      "ai_non_strict_percent": 0.0,
+      "confidence_score": 0.63,
+      "confidence_label": "low_ai_evidence",
+      "confidence_range_label": "muy_bajo",
+      "evidence_types": "assistant_text_evidence|command_evidence|file_touch_evidence|temporal_evidence|weak_indirect_evidence",
+      "explanation": "AI_min uses exact matches only. AI_max weights exact, fuzzy, structural, and indirect evidence against total added lines."
+    }
+  ],
+  "method": "range_estimate_not_absolute_attribution"
+}

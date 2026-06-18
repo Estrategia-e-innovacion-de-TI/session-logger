@@ -1,0 +1,51 @@
+{
+  "trace_event_count": 113,
+  "evidence_summary": {
+    "total_evidence_items": 242,
+    "evidence_by_type": {
+      "file_touch_evidence": 46,
+      "temporal_evidence": 88,
+      "command_evidence": 68,
+      "assistant_text_evidence": 10,
+      "direct_code_evidence": 21,
+      "weak_indirect_evidence": 9
+    },
+    "files": [
+      "/Users/jomaver/Desktop/Code/quantum-computing-experiments",
+      "/Users/jomaver/Desktop/Code/quantum-computing-experiments/README.md",
+      "/Users/jomaver/Desktop/Code/quantum-computing-experiments/mc_vs_qmc_comparison.py",
+      "/Users/jomaver/Desktop/Code/quantum-computing-experiments/requirements.txt",
+      "/Users/jomaver/Desktop/Code/quantum-computing-experiments/summary_report.py",
+      "/Users/jomaver/Desktop/Code/session-logger/propuesta-deteccion-codigo-ia/EXPERIMENTO_ESCENARIO_A.md",
+      "/Users/jomaver/Desktop/Code/session-logger/propuesta-deteccion-codigo-ia/PROPUESTA_DETECCION_CODIGO_IA.md",
+      "propuesta-deteccion-codigo-ia/config/experiment_config.example.json"
+    ],
+    "sessions": [
+      "bb8b91dc-4f13-413e-a72f-2fa08fdedaf1",
+      "f2b49c5c-27be-4162-a06a-7d019374da94"
+    ]
+  },
+  "commit_count": 1,
+  "commit_scores": [
+    {
+      "commit_hash": "c876d697b3e44f6b048120296a582dbb06d2b40f",
+      "author": "JoseMVergara",
+      "date": "2026-06-18T09:08:56-05:00",
+      "message": "feat: agregar función analizar_convergencia_cuantica para estudio de convergencia QMC vs MC  - Implementa análisis comparativo de convergencia entre métodos clásico y cuántico - Calcula errores acumulados y punto de estabilización para cada método - Incluye ejemplos de uso en sección main - Función candidata para análisis de detección de código IA (escenario A)",
+      "files_modified": "summary_report.py",
+      "lines_added": 86,
+      "lines_deleted": 0,
+      "supported_added_lines": 86,
+      "best_similarity_score": 0.5263,
+      "ai_min_percent": 32.56,
+      "ai_max_percent": 75.87,
+      "ai_non_strict_percent": 75.87,
+      "confidence_score": 1.0,
+      "confidence_label": "high_ai_evidence",
+      "confidence_range_label": "alto",
+      "evidence_types": "assistant_text_evidence|command_evidence|direct_code_evidence|file_touch_evidence|temporal_evidence|weak_indirect_evidence",
+      "explanation": "AI_min uses exact matches only. AI_max weights exact, fuzzy, structural, and indirect evidence against total added lines."
+    }
+  ],
+  "method": "range_estimate_not_absolute_attribution"
+}

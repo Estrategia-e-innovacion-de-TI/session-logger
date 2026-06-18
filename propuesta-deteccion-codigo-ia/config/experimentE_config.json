@@ -1,0 +1,70 @@
+{
+  "trace_files": [
+    "EscenarioE/Trace-055511-2026-06-18 14_19_39.json",
+    "EscenarioE/Trace-1545b0-2026-06-18 14_19_50.json",
+    "EscenarioE/Trace-23ff8b-2026-06-18 14_20_02.json",
+    "EscenarioE/Trace-24bb1b-2026-06-18 14_19_35.json",
+    "EscenarioE/Trace-4171c6-2026-06-18 14_19_48.json",
+    "EscenarioE/Trace-4f6c61-2026-06-18 14_19_43.json",
+    "EscenarioE/Trace-50c586-2026-06-18 14_19_37.json",
+    "EscenarioE/Trace-858436-2026-06-18 14_19_51.json",
+    "EscenarioE/Trace-85f3f7-2026-06-18 14_19_44.json",
+    "EscenarioE/Trace-8dcb30-2026-06-18 14_19_32.json",
+    "EscenarioE/Trace-bbce4e-2026-06-18 14_19_46.json",
+    "EscenarioE/Trace-bc5555-2026-06-18 14_19_56.json",
+    "EscenarioE/Trace-c710ab-2026-06-18 14_19_41.json",
+    "EscenarioE/Trace-d866e8-2026-06-18 14_19_54.json",
+    "EscenarioE/Trace-e2e76a-2026-06-18 14_19_33.json",
+    "EscenarioE/Trace-fbade4-2026-06-18 14_19_58.json"
+  ],
+  "target_repository": {
+    "name": "quantum-computing-experiments",
+    "owner": "Estrategia-e-innovacion-de-TI",
+    "local_path": "../../quantum-computing-experiments",
+    "branch": "test",
+    "commit": null,
+    "commit_range": null
+  },
+  "analysis": {
+    "include_notebooks": true,
+    "include_notebook_outputs": false,
+    "similarity_threshold": 0.72,
+    "temporal_window_minutes": 180
+  },
+  "scoring_weights": {
+    "exact_match": 1.0,
+    "fuzzy_match": 0.75,
+    "structural_match": 0.5,
+    "indirect_evidence": 0.55
+  },
+  "confidence_ranges": [
+    {
+      "label": "muy_bajo",
+      "min_ai_percent": 0.0,
+      "min_confidence_score": 0.0
+    },
+    {
+      "label": "bajo",
+      "min_ai_percent": 20.0,
+      "min_confidence_score": 0.4
+    },
+    {
+      "label": "medio",
+      "min_ai_percent": 40.0,
+      "min_confidence_score": 0.55
+    },
+    {
+      "label": "alto",
+      "min_ai_percent": 60.0,
+      "min_confidence_score": 0.7
+    },
+    {
+      "label": "muy_alto",
+      "min_ai_percent": 75.0,
+      "min_confidence_score": 0.85
+    }
+  ],
+  "outputs": {
+    "directory": "outputs"
+  }
+}

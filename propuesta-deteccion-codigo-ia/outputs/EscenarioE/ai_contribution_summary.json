@@ -1,0 +1,45 @@
+{
+  "trace_event_count": 43,
+  "evidence_summary": {
+    "total_evidence_items": 78,
+    "evidence_by_type": {
+      "file_touch_evidence": 18,
+      "temporal_evidence": 30,
+      "weak_indirect_evidence": 4,
+      "command_evidence": 20,
+      "assistant_text_evidence": 1,
+      "direct_code_evidence": 5
+    },
+    "files": [
+      "/Users/jomaver/Desktop/Code/quantum-computing-experiments/requirements.txt",
+      "[\"propuesta-deteccion-codigo-ia/EXPERIMENTO_ESCENARIO_A.md\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-12e51b-2026-06-18 09_10_45.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-1863b0-2026-06-18 09_10_54.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-224b1e-2026-06-18 09_10_16.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-271e1a-2026-06-18 09_10_19.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-2cb635-2026-06-18 09_10_50.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-40f3d2-2026-06-18 09_10_10.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-7d3801-2026-06-18 09_10_23.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-8a4f4a-2026-06-18 09_10_48.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-9196da-2026-06-18 09_10_41.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-b59818-2026-06-18 09_10_07.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-bef58a-2026-06-18 09_11_00.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-c30b9a-2026-06-18 09_10_56.json\",\"propuesta-deteccion-codigo-ia/EscenarioA/Trace-d8fc67-2026-06-18 09_10_02.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-065e96-2026-06-18 10_48_28.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-065e96-2026-06-18 10_48_33.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-3029dd-2026-06-18 10_48_14.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-3c0c2b-2026-06-18 10_49_05.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-524f25-2026-06-18 10_48_58.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-614938-2026-06-18 10_48_26.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-79ce32-2026-06-18 10_49_08.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-905cff-2026-06-18 10_48_49.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-90e4d5-2026-06-18 10_48_23.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-90e4d5-2026-06-18 10_48_24.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Trace-b2a05c-2026-06-18 10_48_20.json\",\"propuesta-deteccion-codigo-ia/EscenarioB/Tr"
+    ],
+    "sessions": [
+      "1621a879-557f-46cf-a0d6-329d73d358d2",
+      "ca1408f9-4241-4dbb-8690-fcea5ef5b010"
+    ]
+  },
+  "commit_count": 1,
+  "commit_scores": [
+    {
+      "commit_hash": "32ddc30ef01c98adc04d6a9a1e3d17fe09935bc4",
+      "author": "JoseMVergara",
+      "date": "2026-06-18T14:19:01-05:00",
+      "message": "escenario E",
+      "files_modified": "requirements.txt",
+      "lines_added": 7,
+      "lines_deleted": 7,
+      "supported_added_lines": 7,
+      "best_similarity_score": 0.0212,
+      "ai_min_percent": 0.0,
+      "ai_max_percent": 55.0,
+      "ai_non_strict_percent": 55.0,
+      "confidence_score": 1.0,
+      "confidence_label": "high_ai_evidence",
+      "confidence_range_label": "medio",
+      "evidence_types": "assistant_text_evidence|command_evidence|direct_code_evidence|file_touch_evidence|temporal_evidence|weak_indirect_evidence",
+      "explanation": "AI_min uses exact matches only. AI_max weights exact, fuzzy, structural, and indirect evidence against total added lines."
+    }
+  ],
+  "method": "range_estimate_not_absolute_attribution"
+}

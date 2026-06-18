@@ -1,0 +1,71 @@
+{
+  "trace_files": [
+    "EscenarioB/Trace-065e96-2026-06-18 10_48_28.json",
+    "EscenarioB/Trace-065e96-2026-06-18 10_48_33.json",
+    "EscenarioB/Trace-3029dd-2026-06-18 10_48_14.json",
+    "EscenarioB/Trace-3c0c2b-2026-06-18 10_49_05.json",
+    "EscenarioB/Trace-524f25-2026-06-18 10_48_58.json",
+    "EscenarioB/Trace-614938-2026-06-18 10_48_26.json",
+    "EscenarioB/Trace-79ce32-2026-06-18 10_49_08.json",
+    "EscenarioB/Trace-905cff-2026-06-18 10_48_49.json",
+    "EscenarioB/Trace-90e4d5-2026-06-18 10_48_23.json",
+    "EscenarioB/Trace-90e4d5-2026-06-18 10_48_24.json",
+    "EscenarioB/Trace-b2a05c-2026-06-18 10_48_20.json",
+    "EscenarioB/Trace-b6a793-2026-06-18 10_49_03.json",
+    "EscenarioB/Trace-bdd877-2026-06-18 10_48_51.json",
+    "EscenarioB/Trace-c516d8-2026-06-18 10_48_45.json",
+    "EscenarioB/Trace-c8f644-2026-06-18 10_49_00.json",
+    "EscenarioB/Trace-ce5ce7-2026-06-18 10_48_53.json",
+    "EscenarioB/Trace-ce62f2-2026-06-18 10_48_55.json"
+  ],
+  "target_repository": {
+    "name": "quantum-computing-experiments",
+    "owner": "Estrategia-e-innovacion-de-TI",
+    "local_path": "../../quantum-computing-experiments",
+    "branch": "test",
+    "commit": null,
+    "commit_range": null
+  },
+  "analysis": {
+    "include_notebooks": true,
+    "include_notebook_outputs": false,
+    "similarity_threshold": 0.72,
+    "temporal_window_minutes": 180
+  },
+  "scoring_weights": {
+    "exact_match": 1.0,
+    "fuzzy_match": 0.75,
+    "structural_match": 0.5,
+    "indirect_evidence": 0.25
+  },
+  "confidence_ranges": [
+    {
+      "label": "muy_bajo",
+      "min_ai_percent": 0.0,
+      "min_confidence_score": 0.0
+    },
+    {
+      "label": "bajo",
+      "min_ai_percent": 20.0,
+      "min_confidence_score": 0.4
+    },
+    {
+      "label": "medio",
+      "min_ai_percent": 40.0,
+      "min_confidence_score": 0.55
+    },
+    {
+      "label": "alto",
+      "min_ai_percent": 60.0,
+      "min_confidence_score": 0.7
+    },
+    {
+      "label": "muy_alto",
+      "min_ai_percent": 75.0,
+      "min_confidence_score": 0.85
+    }
+  ],
+  "outputs": {
+    "directory": "outputs"
+  }
+}
