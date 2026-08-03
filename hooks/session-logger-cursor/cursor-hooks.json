@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "type": "command",
+        "bash": "CURSOR_SESSION_LOGGER_LOKI_ENABLED=true CURSOR_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push CURSOR_SESSION_LOGGER_OTLP_ENABLED=true CURSOR_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 SESSION_LOGGER_SOURCE=cursor hooks/session-logger-cursor/session-logger-cursor.sh --event sessionStart",
+        "powershell": "$env:CURSOR_SESSION_LOGGER_LOKI_ENABLED='true'; $env:CURSOR_SESSION_LOGGER_LOKI_ENDPOINT='http://localhost:3100/loki/api/v1/push'; $env:CURSOR_SESSION_LOGGER_OTLP_ENABLED='true'; $env:CURSOR_SESSION_LOGGER_OTLP_ENDPOINT='http://localhost:4318'; $env:SESSION_LOGGER_SOURCE='cursor'; & hooks/session-logger-cursor/session-logger-cursor.ps1 -Event sessionStart",
+        "cwd": ".",
+        "timeoutSec": 5
+      }
+    ],
+    "userPromptSubmitted": [
+      {
+        "type": "command",
+        "bash": "CURSOR_SESSION_LOGGER_LOKI_ENABLED=true CURSOR_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push CURSOR_SESSION_LOGGER_OTLP_ENABLED=true CURSOR_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 SESSION_LOGGER_SOURCE=cursor hooks/session-logger-cursor/session-logger-cursor.sh --event userPromptSubmitted",
+        "powershell": "$env:CURSOR_SESSION_LOGGER_LOKI_ENABLED='true'; $env:CURSOR_SESSION_LOGGER_LOKI_ENDPOINT='http://localhost:3100/loki/api/v1/push'; $env:CURSOR_SESSION_LOGGER_OTLP_ENABLED='true'; $env:CURSOR_SESSION_LOGGER_OTLP_ENDPOINT='http://localhost:4318'; $env:SESSION_LOGGER_SOURCE='cursor'; & hooks/session-logger-cursor/session-logger-cursor.ps1 -Event userPromptSubmitted",
+        "cwd": ".",
+        "timeoutSec": 5
+      }
+    ],
+    "preToolUse": [
+      {
+        "type": "command",
+        "bash": "CURSOR_SESSION_LOGGER_LOKI_ENABLED=true CURSOR_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push CURSOR_SESSION_LOGGER_OTLP_ENABLED=true CURSOR_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 SESSION_LOGGER_SOURCE=cursor hooks/session-logger-cursor/session-logger-cursor.sh --event preToolUse",
+        "powershell": "$env:CURSOR_SESSION_LOGGER_LOKI_ENABLED='true'; $env:CURSOR_SESSION_LOGGER_LOKI_ENDPOINT='http://localhost:3100/loki/api/v1/push'; $env:CURSOR_SESSION_LOGGER_OTLP_ENABLED='true'; $env:CURSOR_SESSION_LOGGER_OTLP_ENDPOINT='http://localhost:4318'; $env:SESSION_LOGGER_SOURCE='cursor'; & hooks/session-logger-cursor/session-logger-cursor.ps1 -Event preToolUse",
+        "cwd": ".",
+        "timeoutSec": 5
+      }
+    ],
+    "postToolUse": [
+      {
+        "type": "command",
+        "bash": "CURSOR_SESSION_LOGGER_LOKI_ENABLED=true CURSOR_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push CURSOR_SESSION_LOGGER_OTLP_ENABLED=true CURSOR_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 SESSION_LOGGER_SOURCE=cursor hooks/session-logger-cursor/session-logger-cursor.sh --event postToolUse",
+        "powershell": "$env:CURSOR_SESSION_LOGGER_LOKI_ENABLED='true'; $env:CURSOR_SESSION_LOGGER_LOKI_ENDPOINT='http://localhost:3100/loki/api/v1/push'; $env:CURSOR_SESSION_LOGGER_OTLP_ENABLED='true'; $env:CURSOR_SESSION_LOGGER_OTLP_ENDPOINT='http://localhost:4318'; $env:SESSION_LOGGER_SOURCE='cursor'; & hooks/session-logger-cursor/session-logger-cursor.ps1 -Event postToolUse",
+        "cwd": ".",
+        "timeoutSec": 5
+      }
+    ],
+    "sessionEnd": [
+      {
+        "type": "command",
+        "bash": "CURSOR_SESSION_LOGGER_LOKI_ENABLED=true CURSOR_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push CURSOR_SESSION_LOGGER_OTLP_ENABLED=true CURSOR_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 SESSION_LOGGER_SOURCE=cursor hooks/session-logger-cursor/session-logger-cursor.sh --event sessionEnd",
+        "powershell": "$env:CURSOR_SESSION_LOGGER_LOKI_ENABLED='true'; $env:CURSOR_SESSION_LOGGER_LOKI_ENDPOINT='http://localhost:3100/loki/api/v1/push'; $env:CURSOR_SESSION_LOGGER_OTLP_ENABLED='true'; $env:CURSOR_SESSION_LOGGER_OTLP_ENDPOINT='http://localhost:4318'; $env:SESSION_LOGGER_SOURCE='cursor'; & hooks/session-logger-cursor/session-logger-cursor.ps1 -Event sessionEnd",
+        "cwd": ".",
+        "timeoutSec": 5
+      }
+    ],
+    "errorOccurred": [
+      {
+        "type": "command",
+        "bash": "CURSOR_SESSION_LOGGER_LOKI_ENABLED=true CURSOR_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push CURSOR_SESSION_LOGGER_OTLP_ENABLED=true CURSOR_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 SESSION_LOGGER_SOURCE=cursor hooks/session-logger-cursor/session-logger-cursor.sh --event errorOccurred",
+        "powershell": "$env:CURSOR_SESSION_LOGGER_LOKI_ENABLED='true'; $env:CURSOR_SESSION_LOGGER_LOKI_ENDPOINT='http://localhost:3100/loki/api/v1/push'; $env:CURSOR_SESSION_LOGGER_OTLP_ENABLED='true'; $env:CURSOR_SESSION_LOGGER_OTLP_ENDPOINT='http://localhost:4318'; $env:SESSION_LOGGER_SOURCE='cursor'; & hooks/session-logger-cursor/session-logger-cursor.ps1 -Event errorOccurred",
+        "cwd": ".",
+        "timeoutSec": 5
+      }
+    ]
+  }
+}

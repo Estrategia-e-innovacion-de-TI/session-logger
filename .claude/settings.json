@@ -1,0 +1,69 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push COPILOT_SESSION_LOGGER_OTLP_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 SESSION_LOGGER_SOURCE=claude .github/hooks/session-logger/session-logger.sh --event SessionStart",
+            "timeout": 5,
+            "statusMessage": "Logging session start..."
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -c . | COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push COPILOT_SESSION_LOGGER_OTLP_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 SESSION_LOGGER_SOURCE=claude .github/hooks/session-logger/session-logger.sh --event UserPromptSubmit",
+            "timeout": 5,
+            "statusMessage": "Logging user prompt..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -c . | COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push COPILOT_SESSION_LOGGER_OTLP_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 SESSION_LOGGER_SOURCE=claude .github/hooks/session-logger/session-logger.sh --event PreToolUse",
+            "timeout": 5,
+            "statusMessage": "Logging pre-tool use..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -c . | COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push COPILOT_SESSION_LOGGER_OTLP_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 SESSION_LOGGER_SOURCE=claude .github/hooks/session-logger/session-logger.sh --event PostToolUse 2>/dev/null || true",
+            "timeout": 5,
+            "statusMessage": "Logging post-tool use..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -c . | COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push COPILOT_SESSION_LOGGER_OTLP_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 SESSION_LOGGER_SOURCE=claude .github/hooks/session-logger/session-logger.sh --event Stop",
+            "timeout": 5,
+            "statusMessage": "Logging session stop..."
+          }
+        ]
+      }
+    ]
+  }
+}

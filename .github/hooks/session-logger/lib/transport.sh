@@ -67,6 +67,7 @@ build_metric_attributes_from_event() {
   jq -cn --argjson event "$event_json" '
     [
       {key:"event_type", value:{stringValue:($event.event_type // "unknown")}},
+      {key:"agent_source", value:{stringValue:($event.agent_source // "unknown")}},
       {key:"repository", value:{stringValue:($event.repository // "unknown")}},
       {key:"branch", value:{stringValue:($event.branch // "unknown")}},
       {key:"source", value:{stringValue:($event.source // "unknown")}},
@@ -271,6 +272,7 @@ build_loki_payload() {
               service_name: "session-logger",
               hostname: $logger_hostname,
               source: $source,
+              agent_source: ($event.agent_source // $event.metadata.agent_source // "unknown"),
               event_type: ($event.event_type // "unknown"),
               session_id: ($event.session_id // "unknown"),
               repository: ($event.repository // "unknown"),

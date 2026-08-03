@@ -1,6 +1,6 @@
 # session-logger
 
-Hook de monitoreo para GitHub Copilot orientado a observabilidad.
+Hook de monitoreo multi-agente (GitHub Copilot y Claude Code) orientado a observabilidad.
 
 Estado actual de esta rama:
 - Sin backend de ingesta.
@@ -12,12 +12,26 @@ Estado actual de esta rama:
 ## Arquitectura
 
 ```text
-Copilot Hook Event
-  -> hooks/session-logger.sh (macOS/Linux) o .github/hooks/session-logger/session-logger-windows.ps1 (Windows)
+Hook Event (Copilot o Claude)
+  -> session-logger.sh (macOS/Linux) o session-logger-windows.ps1 (Windows)
+  -> deteccion automatica de agente (github_copilot | claude_code | unknown)
   -> normalizacion + sanitizacion
-  -> envio a Loki (/loki/api/v1/push)
+  -> envio a Loki (/loki/api/v1/push) con label agent_source
   -> envio OTLP a Tempo/Collector (/v1/traces y /v1/metrics)
 ```
+
+## Soporte Multi-Agente
+
+El logger detecta automáticamente la fuente del evento:
+
+- **GitHub Copilot**: Detectado por campos `copilotUser`, `githubCopilotUser`, o eventos en camelCase (`userPromptSubmitted`)
+- **Claude Code**: Detectado por `hook_event_name` en PascalCase (`UserPromptSubmit`), campo `transcript_path`, o herramientas específicas (`Read`, `Write`, `Edit`)
+- **Unknown**: Fallback cuando no se puede determinar el agente
+
+Todos los eventos normalizados incluyen:
+- Campo `agent_source`: `github_copilot`, `claude_code`, o `unknown`
+- Label `agent_source` en Loki para filtrado
+- Atributo `agent_source` en métricas OTLP
 
 ## Variables de entorno
 
@@ -48,12 +62,20 @@ No se usa fallback por estado de Git para `files_added`.
 
 ## Uso rapido
 
-### macOS / Linux
+### GitHub Copilot (macOS / Linux)
 
 ```bash
 COPILOT_SESSION_LOGGER_LOKI_ENABLED=true \
 COPILOT_SESSION_LOGGER_OTLP_ENABLED=true \
-bash hooks/session-logger.sh --event userPromptSubmitted < examples/payload-user-prompt.json
+bash .github/hooks/session-logger/session-logger.sh --event userPromptSubmitted < examples/payload-user-prompt.json
+```
+
+### Claude Code (macOS / Linux)
+
+```bash
+COPILOT_SESSION_LOGGER_LOKI_ENABLED=true \
+COPILOT_SESSION_LOGGER_OTLP_ENABLED=true \
+bash .github/hooks/session-logger/session-logger.sh --event UserPromptSubmit < examples/claude-payloads/user-prompt-submit.json
 ```
 
 ### Windows (PowerShell)
@@ -66,8 +88,71 @@ Get-Content examples/payload-user-prompt.json | .github/hooks/session-logger/ses
 
 ## Hooks de referencia
 
+### GitHub Copilot
 - Configuracion lista para usar: `.github/hooks/copilot-hooks.json`
 - Ejemplo alterno: `examples/copilot-hooks.json`
+- Payloads de ejemplo: `examples/payload-*.json`
+
+### Claude Code
+- Configuracion para Claude: `.claude/settings.local.json` (este proyecto)
+- Payloads de ejemplo: `examples/claude-payloads/*.json`
+- Eventos soportados: `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `SessionEnd`, `ErrorOccurred`
+
+## Configuracion de hooks
+
+### GitHub Copilot
+
+Coloca `copilot-hooks.json` en la raíz del proyecto y configura las variables de entorno en los comandos bash/powershell.
+
+### Claude Code
+
+Agrega hooks en `.claude/settings.json` o `.claude/settings.local.json`:
+
+```json
+{
+  "version": 1,
+  "hooks": {
+    "UserPromptSubmit": [{
+      "type": "command",
+      "bash": "COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENABLED=true .github/hooks/session-logger/session-logger.sh --event UserPromptSubmit",
+      "cwd": ".",
+      "timeoutSec": 5
+    }],
+    "PreToolUse": [{
+      "type": "command",
+      "bash": "COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENABLED=true .github/hooks/session-logger/session-logger.sh --event PreToolUse",
+      "cwd": ".",
+      "timeoutSec": 5
+    }],
+    "PostToolUse": [{
+      "type": "command",
+      "bash": "COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENABLED=true .github/hooks/session-logger/session-logger.sh --event PostToolUse",
+      "cwd": ".",
+      "timeoutSec": 5
+    }]
+  }
+}
+```
+
+**Nota**: Claude Code usa nombres de eventos en PascalCase (`UserPromptSubmit`) mientras que GitHub Copilot usa camelCase (`userPromptSubmitted`).
+
+## Consultas en Loki
+
+### Filtrar por agente
+
+```logql
+# Solo eventos de GitHub Copilot
+{job="session-logger-shell", agent_source="github_copilot"}
+
+# Solo eventos de Claude Code
+{job="session-logger-shell", agent_source="claude_code"}
+
+# Comparar uso entre agentes
+sum by (agent_source) (count_over_time({job="session-logger-shell"}[1h]))
+
+# Herramientas más usadas por agente
+sum by (agent_source, tool_name) (count_over_time({job="session-logger-shell", event_type="tool_use"}[1h]))
+```
 
 ## Prueba rapida del script bash
 

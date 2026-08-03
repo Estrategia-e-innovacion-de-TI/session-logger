@@ -10,6 +10,18 @@ receivers:
       http:
         endpoint: 0.0.0.0:4318
 
+  # OTLP HTTP receiver requiring mutual TLS (client certificate auth).
+  # Used for testing/production paths where the agent must present a
+  # client certificate signed by our local CA (see Stack-observabilidad/certs).
+  otlp/mtls:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4319
+        tls:
+          cert_file: /etc/otel-certs/server.crt
+          key_file: /etc/otel-certs/server.key
+          client_ca_file: /etc/otel-certs/ca.crt
+
 connectors:
   # Derive RED-style metrics from traces so Prometheus has useful metrics
   # even if clients send only traces/logs.
@@ -67,18 +79,18 @@ service:
   pipelines:
     # Traces pipeline: OTLP -> Batch -> Tempo
     traces:
-      receivers: [otlp]
+      receivers: [otlp, otlp/mtls]
       processors: [memory_limiter, batch, resource]
       exporters: [otlp/tempo, spanmetrics, logging]
     
     # Metrics pipeline: OTLP -> Batch -> Prometheus
     metrics:
-      receivers: [otlp, spanmetrics]
+      receivers: [otlp, otlp/mtls, spanmetrics]
       processors: [memory_limiter, batch, resource]
       exporters: [prometheus, logging]
     
     # Logs pipeline: OTLP -> Batch -> Loki
     logs:
-      receivers: [otlp]
+      receivers: [otlp, otlp/mtls]
       processors: [memory_limiter, batch, resource, resource/loki_labels]
       exporters: [loki, logging]

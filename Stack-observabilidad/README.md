@@ -11,13 +11,13 @@ Este stack recibe telemetria OTLP por HTTP en el puerto 4318 y la enruta asi:
 Comando:
 
 ```bash
-docker-compose -f "/Users/jomaver/Downloads/Stack-observabilidad/docker-compose.observability 1.yml" up -d
+docker-compose -f "./Stack-observabilidad/docker-compose.observability 1.yml" up -d
 ```
 
 Validar estado:
 
 ```bash
-docker-compose -f "/Users/jomaver/Downloads/Stack-observabilidad/docker-compose.observability 1.yml" ps
+docker-compose -f "./Stack-observabilidad/docker-compose.observability 1.yml" ps
 ```
 
 Endpoints:

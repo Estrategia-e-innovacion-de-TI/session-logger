@@ -20,9 +20,11 @@ services:
     command: ["--config=/etc/otel-collector-config.yaml"]
     volumes:
       - "./otel-collector-config 2.yaml:/etc/otel-collector-config.yaml:ro"
+      - "./certs:/etc/otel-certs:ro"
     ports:
       - "4317:4317"   # OTLP gRPC receiver (used by agents)
       - "4318:4318"   # OTLP HTTP receiver
+      - "4319:4319"   # OTLP HTTP receiver with mutual TLS (mTLS)
       - "8888:8888"   # Prometheus metrics exposed by the collector
       - "8889:8889"   # Prometheus exporter metrics
     networks:

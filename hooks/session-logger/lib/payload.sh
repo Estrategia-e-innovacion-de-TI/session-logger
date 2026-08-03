@@ -23,7 +23,7 @@ extract_event_type() {
     return 0
   fi
   jq -r '
-    .event_type // .eventType // .hook_event // .hookEvent // .payload.event_type // empty
+    .event_type // .eventType // .hook_event // .hookEvent // .hook_event_name // .payload.event_type // empty
   ' <<< "$payload"
 }
 
@@ -31,12 +31,12 @@ normalize_event_type() {
   local event_type="$1"
   jq -nr --arg event_type "$event_type" '
     def normalize($event):
-      if $event == "sessionStart" then "session_start"
-      elif $event == "userPromptSubmitted" then "user_prompt"
-      elif $event == "preToolUse" then "tool_use"
-      elif $event == "postToolUse" then "tool_result"
-      elif $event == "sessionEnd" then "session_end"
-      elif $event == "errorOccurred" then "error"
+      if $event == "sessionStart" or $event == "SessionStart" then "session_start"
+      elif $event == "userPromptSubmitted" or $event == "UserPromptSubmit" then "user_prompt"
+      elif $event == "preToolUse" or $event == "PreToolUse" then "tool_use"
+      elif $event == "postToolUse" or $event == "PostToolUse" then "tool_result"
+      elif $event == "sessionEnd" or $event == "SessionEnd" then "session_end"
+      elif $event == "errorOccurred" or $event == "ErrorOccurred" then "error"
       else ($event | ascii_downcase | gsub("[^a-z0-9]+"; "_") | gsub("^_|_$"; ""))
       end;
     normalize($event_type)
@@ -135,9 +135,9 @@ extract_tool_metadata() {
       elif type == "array" then tojson
       else tostring
       end;
-    (.toolArgs // .tool_args // .tool_input // .payload.toolArgs // .payload.tool_input // .request.toolArgs // null | parse_json) as $tool_input |
-    (.toolResult // .tool_result // .payload.toolResult // null | parse_json) as $tool_result |
-    (.tool_name // .toolName // .tool // .payload.toolName // null) as $tool_name_raw |
+    (.toolArgs // .tool_args // .tool_input // .toolInput // .payload.toolArgs // .payload.tool_input // .request.toolArgs // null | parse_json) as $tool_input |
+    (.toolResult // .tool_result // .tool_response // .toolResponse // .payload.toolResult // .payload.tool_response // null | parse_json) as $tool_result |
+    (.tool_name // .toolName // .tool // .payload.toolName // .payload.tool_name // null) as $tool_name_raw |
     ($tool_name_raw | if . == null then null else tostring end) as $tool_name_text |
     ($tool_name_text | if . == null then null else ascii_downcase end) as $tool_name |
     ($tool_name_text | if . == null then null else (sub("^[^.]+\\."; "")) end) as $tool_name_canonical_raw |
@@ -220,8 +220,11 @@ extract_tool_metadata() {
       mcp_name: (if $invocation_origin == "mcp" then $invocation_name else null end),
       plugin_name: (if $invocation_origin == "plugin" then $invocation_name else null end),
       status: (
-        .status // .reason // $tool_result.resultType // $tool_result.status //
-        (if ($tool_result.success? == true) then "success" elif ($tool_result.success? == false) then "failure" else null end)
+        .status // .reason //
+        (if ($tool_result | type) == "object" then ($tool_result.resultType // $tool_result.status) else null end) //
+        (if ($tool_result | type) == "object" and ($tool_result.success? == true) then "success"
+         elif ($tool_result | type) == "object" and ($tool_result.success? == false) then "failure"
+         else null end)
       ),
       duration_ms: (.duration_ms // .durationMs // .payload.duration_ms // null),
       command: (.command // .payload.command // $tool_input.command // $tool_input.cmd // $tool_input.script // null)
@@ -286,6 +289,7 @@ build_normalized_event() {
   local git_context="$7"
   local actor="$8"
   local metadata_json="${9}"
+  local agent_source="${10:-unknown}"
   [ -z "$metadata_json" ] && metadata_json="{}"
   local now
   local sanitized_payload
@@ -314,6 +318,7 @@ build_normalized_event() {
     --arg source "$SESSION_LOGGER_SOURCE" \
     --arg version "$SESSION_LOGGER_VERSION" \
     --arg copilot_user "$copilot_user" \
+    --arg agent_source "$agent_source" \
     --arg now "$now" \
     '
       def first(paths):
@@ -389,6 +394,7 @@ build_normalized_event() {
         actor:(if $actor == "" then null else $actor end),
         user_id:(if $actor == "" then null else $actor end),
         source:$source,
+        agent_source:(if $agent_source == "" then "unknown" else $agent_source end),
         repository:(first([["repository"], ["repo_name"], ["repositoryName"], ["payload","repository"]]) // $git.repo_name | as_string),
         branch:(first([["branch"], ["git_branch"], ["payload","branch"]]) // $git.git_branch | as_string),
         workspace:(first([["workspace"], ["cwd"], ["workingDirectory"], ["working_directory"], ["payload","cwd"]]) | as_string),
@@ -410,6 +416,7 @@ build_normalized_event() {
           {
             hook_event_type:$hook_event_type,
             logger_version:$version,
+            agent_source:(if $agent_source == "" then "unknown" else $agent_source end),
             payload_source:source_payload,
             mode:($tool.mode | as_string),
             execution_mode:($tool.execution_mode | as_string),

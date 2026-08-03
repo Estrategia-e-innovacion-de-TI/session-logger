@@ -4,8 +4,8 @@
     "sessionStart": [
       {
         "type": "command",
-        "bash": "COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push COPILOT_SESSION_LOGGER_OTLP_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 .github/hooks/session-logger/session-logger.sh --event sessionStart",
-        "powershell": "& .github/hooks/session-logger/session-logger-windows.ps1 -Event sessionStart",
+        "bash": "COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push COPILOT_SESSION_LOGGER_OTLP_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 SESSION_LOGGER_SOURCE=copilot .github/hooks/session-logger/session-logger.sh --event sessionStart",
+        "powershell": "$env:COPILOT_SESSION_LOGGER_LOKI_ENABLED='true'; $env:COPILOT_SESSION_LOGGER_LOKI_ENDPOINT='http://localhost:3100/loki/api/v1/push'; $env:COPILOT_SESSION_LOGGER_OTLP_ENABLED='true'; $env:COPILOT_SESSION_LOGGER_OTLP_ENDPOINT='http://localhost:4318'; $env:SESSION_LOGGER_SOURCE='copilot'; & .github/hooks/session-logger/session-logger-windows.ps1 -Event sessionStart",
         "cwd": ".",
         "timeoutSec": 5
       }
@@ -13,8 +13,8 @@
     "userPromptSubmitted": [
       {
         "type": "command",
-        "bash": "COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push COPILOT_SESSION_LOGGER_OTLP_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 .github/hooks/session-logger/session-logger.sh --event userPromptSubmitted",
-        "powershell": "& .github/hooks/session-logger/session-logger-windows.ps1 -Event userPromptSubmitted",
+        "bash": "COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push COPILOT_SESSION_LOGGER_OTLP_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 SESSION_LOGGER_SOURCE=copilot .github/hooks/session-logger/session-logger.sh --event userPromptSubmitted",
+        "powershell": "$env:COPILOT_SESSION_LOGGER_LOKI_ENABLED='true'; $env:COPILOT_SESSION_LOGGER_LOKI_ENDPOINT='http://localhost:3100/loki/api/v1/push'; $env:COPILOT_SESSION_LOGGER_OTLP_ENABLED='true'; $env:COPILOT_SESSION_LOGGER_OTLP_ENDPOINT='http://localhost:4318'; $env:SESSION_LOGGER_SOURCE='copilot'; & .github/hooks/session-logger/session-logger-windows.ps1 -Event userPromptSubmitted",
         "cwd": ".",
         "timeoutSec": 5
       }
@@ -22,8 +22,8 @@
     "preToolUse": [
       {
         "type": "command",
-        "bash": "COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push COPILOT_SESSION_LOGGER_OTLP_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 .github/hooks/session-logger/session-logger.sh --event preToolUse",
-        "powershell": "& .github/hooks/session-logger/session-logger-windows.ps1 -Event preToolUse",
+        "bash": "COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push COPILOT_SESSION_LOGGER_OTLP_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 SESSION_LOGGER_SOURCE=copilot .github/hooks/session-logger/session-logger.sh --event preToolUse",
+        "powershell": "$env:COPILOT_SESSION_LOGGER_LOKI_ENABLED='true'; $env:COPILOT_SESSION_LOGGER_LOKI_ENDPOINT='http://localhost:3100/loki/api/v1/push'; $env:COPILOT_SESSION_LOGGER_OTLP_ENABLED='true'; $env:COPILOT_SESSION_LOGGER_OTLP_ENDPOINT='http://localhost:4318'; $env:SESSION_LOGGER_SOURCE='copilot'; & .github/hooks/session-logger/session-logger-windows.ps1 -Event preToolUse",
         "cwd": ".",
         "timeoutSec": 5
       }
@@ -31,8 +31,8 @@
     "postToolUse": [
       {
         "type": "command",
-        "bash": "COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push COPILOT_SESSION_LOGGER_OTLP_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 .github/hooks/session-logger/session-logger.sh --event postToolUse",
-        "powershell": "& .github/hooks/session-logger/session-logger-windows.ps1 -Event postToolUse",
+        "bash": "COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push COPILOT_SESSION_LOGGER_OTLP_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 SESSION_LOGGER_SOURCE=copilot .github/hooks/session-logger/session-logger.sh --event postToolUse",
+        "powershell": "$env:COPILOT_SESSION_LOGGER_LOKI_ENABLED='true'; $env:COPILOT_SESSION_LOGGER_LOKI_ENDPOINT='http://localhost:3100/loki/api/v1/push'; $env:COPILOT_SESSION_LOGGER_OTLP_ENABLED='true'; $env:COPILOT_SESSION_LOGGER_OTLP_ENDPOINT='http://localhost:4318'; $env:SESSION_LOGGER_SOURCE='copilot'; & .github/hooks/session-logger/session-logger-windows.ps1 -Event postToolUse",
         "cwd": ".",
         "timeoutSec": 5
       }
@@ -40,8 +40,8 @@
     "sessionEnd": [
       {
         "type": "command",
-        "bash": "COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push COPILOT_SESSION_LOGGER_OTLP_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 .github/hooks/session-logger/session-logger.sh --event sessionEnd",
-        "powershell": "& .github/hooks/session-logger/session-logger-windows.ps1 -Event sessionEnd",
+        "bash": "COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push COPILOT_SESSION_LOGGER_OTLP_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 SESSION_LOGGER_SOURCE=copilot .github/hooks/session-logger/session-logger.sh --event sessionEnd",
+        "powershell": "$env:COPILOT_SESSION_LOGGER_LOKI_ENABLED='true'; $env:COPILOT_SESSION_LOGGER_LOKI_ENDPOINT='http://localhost:3100/loki/api/v1/push'; $env:COPILOT_SESSION_LOGGER_OTLP_ENABLED='true'; $env:COPILOT_SESSION_LOGGER_OTLP_ENDPOINT='http://localhost:4318'; $env:SESSION_LOGGER_SOURCE='copilot'; & .github/hooks/session-logger/session-logger-windows.ps1 -Event sessionEnd",
         "cwd": ".",
         "timeoutSec": 5
       }
@@ -49,8 +49,8 @@
     "errorOccurred": [
       {
         "type": "command",
-        "bash": "COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push COPILOT_SESSION_LOGGER_OTLP_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 .github/hooks/session-logger/session-logger.sh --event errorOccurred",
-        "powershell": "& .github/hooks/session-logger/session-logger-windows.ps1 -Event errorOccurred",
+        "bash": "COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push COPILOT_SESSION_LOGGER_OTLP_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 SESSION_LOGGER_SOURCE=copilot .github/hooks/session-logger/session-logger.sh --event errorOccurred",
+        "powershell": "$env:COPILOT_SESSION_LOGGER_LOKI_ENABLED='true'; $env:COPILOT_SESSION_LOGGER_LOKI_ENDPOINT='http://localhost:3100/loki/api/v1/push'; $env:COPILOT_SESSION_LOGGER_OTLP_ENABLED='true'; $env:COPILOT_SESSION_LOGGER_OTLP_ENDPOINT='http://localhost:4318'; $env:SESSION_LOGGER_SOURCE='copilot'; & .github/hooks/session-logger/session-logger-windows.ps1 -Event errorOccurred",
         "cwd": ".",
         "timeoutSec": 5
       }

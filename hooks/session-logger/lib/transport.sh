@@ -67,6 +67,7 @@ build_metric_attributes_from_event() {
   jq -cn --argjson event "$event_json" '
     [
       {key:"event_type", value:{stringValue:($event.event_type // "unknown")}},
+      {key:"agent_source", value:{stringValue:($event.agent_source // "unknown")}},
       {key:"repository", value:{stringValue:($event.repository // "unknown")}},
       {key:"branch", value:{stringValue:($event.branch // "unknown")}},
       {key:"source", value:{stringValue:($event.source // "unknown")}},
@@ -190,12 +191,24 @@ send_otlp_payload() {
   error_file="$(mktemp)"
   printf '%s\n' "$payload" > "$body_file"
 
+  local -a tls_args=()
+  if [ -n "$SESSION_LOGGER_OTLP_CLIENT_CERT" ]; then
+    tls_args+=(--cert "$SESSION_LOGGER_OTLP_CLIENT_CERT")
+  fi
+  if [ -n "$SESSION_LOGGER_OTLP_CLIENT_KEY" ]; then
+    tls_args+=(--key "$SESSION_LOGGER_OTLP_CLIENT_KEY")
+  fi
+  if [ -n "$SESSION_LOGGER_OTLP_CA_CERT" ]; then
+    tls_args+=(--cacert "$SESSION_LOGGER_OTLP_CA_CERT")
+  fi
+
   set +e
   http_code="$({
     curl -sS \
       -o "$response_file" \
       -w "%{http_code}" \
       --max-time "$SESSION_LOGGER_TIMEOUT_SECONDS" \
+      "${tls_args[@]}" \
       -X POST "$endpoint" \
       -H "Content-Type: application/json" \
       --data-binary "@$body_file" 2>"$error_file"
@@ -271,6 +284,7 @@ build_loki_payload() {
               service_name: "session-logger",
               hostname: $logger_hostname,
               source: $source,
+              agent_source: ($event.agent_source // $event.metadata.agent_source // "unknown"),
               event_type: ($event.event_type // "unknown"),
               session_id: ($event.session_id // "unknown"),
               repository: ($event.repository // "unknown"),

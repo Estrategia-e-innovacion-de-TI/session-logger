@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-06-18T21:35:25.450Z",
+  "cwd": "/Users/jomaver/Desktop/Code/session-logger",
+  "sessionId": "a6add3ac-74af-41f1-baf6-dfec02cd6cd7",
+  "actor": "jomaver",
+  "hook_event_name": "PostToolUse",
+  "tool_name": "Bash",
+  "tool_use_id": "toolu_01ABC123",
+  "tool_input": {
+    "command": "ls -la .github/hooks/",
+    "description": "List hook directory contents"
+  },
+  "tool_response": "total 8\ndrwxr-xr-x  4 user  staff  128 Jun 18 10:00 .\ndrwxr-xr-x  5 user  staff  160 Jun 18 10:00 ..\n-rw-r--r--  1 user  staff  456 Jun 18 10:00 copilot-hooks.json\ndrwxr-xr-x  6 user  staff  192 Jun 18 10:00 session-logger"
+}

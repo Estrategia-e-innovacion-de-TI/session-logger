@@ -8,6 +8,10 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/" && pwd)"
 source "$REPO_ROOT/lib/logger.sh"
 # shellcheck source=../lib/state.sh
 source "$REPO_ROOT/lib/state.sh"
+# shellcheck source=../lib/agent-detector.sh
+source "$REPO_ROOT/lib/agent-detector.sh"
+# shellcheck source=../lib/claude-payload.sh
+source "$REPO_ROOT/lib/claude-payload.sh"
 # shellcheck source=../lib/payload.sh
 source "$REPO_ROOT/lib/payload.sh"
 # shellcheck source=../lib/transport.sh
@@ -122,6 +126,7 @@ build_scope_key() {
 run_log() {
   ensure_logger_directories
   local payload
+  local agent_source
   local hook_event_type
   local normalized_event_type
   local explicit_session_id
@@ -138,6 +143,10 @@ run_log() {
   local event_json
 
   payload="$(read_stdin_payload)" || return $?
+
+  # Detect agent source (copilot, claude, or unknown)
+  agent_source="$(detect_agent_source "$payload")" || agent_source="unknown"
+
   hook_event_type="$(extract_event_type "$payload" "$EVENT_TYPE_OVERRIDE")" || return $?
   if [ -z "$hook_event_type" ]; then
     json_log "error" "event_type_required" "Provide --event or event_type in payload"
@@ -178,7 +187,8 @@ run_log() {
       "$parent_user_prompt_id" \
       "$git_context" \
       "$actor" \
-      "$METADATA_JSON"
+      "$METADATA_JSON" \
+      "$agent_source"
   )" || return $?
 
   if logger_bool_true "$DRY_RUN"; then

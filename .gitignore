@@ -7,4 +7,9 @@ dist/
 *.egg-info/
 __pycache__/
 .coverage
-.claude
+.claude.claude/settings.json
+
+# Certificados mTLS locales generados para pruebas (no commitear claves privadas)
+Stack-observabilidad/certs/*.key
+Stack-observabilidad/certs/*.crt
+Stack-observabilidad/certs/*.srl

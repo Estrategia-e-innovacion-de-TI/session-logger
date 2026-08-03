@@ -1,0 +1,14 @@
+{
+  "timestamp": "2026-07-28T14:32:00Z",
+  "cwd": "/workspace/mi-proyecto",
+  "sessionId": "sess_cursor_demo_001",
+  "cursorUser": "developer@empresa.com",
+  "cursorSessionId": "cursor_sess_abc123",
+  "workspaceId": "workspace_12345",
+  "workspaceName": "Mi Proyecto",
+  "actor": "developer",
+  "repository": "session-logger",
+  "branch": "development",
+  "prompt": "Implementa un nuevo feature de detección de eventos en el session-logger",
+  "eventType": "userPromptSubmitted"
+}

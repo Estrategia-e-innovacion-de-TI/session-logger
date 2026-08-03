@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "sonarqube": {
+      "command": "podman",
+      "args": [
+        "run", "-i", "--rm",
+        "-e", "SONARQUBE_TOKEN",
+        "-e", "SONARQUBE_URL",
+        "mcp/sonarqube"
+      ],
+      "env": {
+        "SONARQUBE_URL": "https://sonar.apps.bancolombia.com/sonarbc",
+        "SONARQUBE_TOKEN": "squ_86473cdf2126f61f9b11ba376869aa26d42ab9b2"
+      },
+      "disabled": false
+    }
+  }
+}

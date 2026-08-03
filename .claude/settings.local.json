@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(chmod +x *)",
+      "Bash(bash /tmp/test-multi-agent.sh)",
+      "Bash(bash .github/hooks/session-logger/session-logger.sh --event PostToolUse --dry-run)",
+      "Bash(bash *)",
+      "Skill(update-config)",
+      "Bash(COPILOT_SESSION_LOGGER_LOKI_ENABLED=true COPILOT_SESSION_LOGGER_LOKI_ENDPOINT=http://localhost:3100/loki/api/v1/push COPILOT_SESSION_LOGGER_OTLP_ENABLED=true COPILOT_SESSION_LOGGER_OTLP_ENDPOINT=http://localhost:4318 SESSION_LOGGER_SOURCE=claude .github/hooks/session-logger/session-logger.sh --event PostToolUse --dry-run)",
+      "Bash(grep -q \"^\\\\.claude/settings\\\\.json$\" .gitignore)",
+      "Bash(echo \".claude/settings.json\")"
+    ]
+  },
+  "version": 1
+}

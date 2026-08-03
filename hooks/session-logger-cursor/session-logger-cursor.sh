@@ -2,35 +2,75 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../session-logger" && pwd)"
 
-# shellcheck source=../lib/logger.sh
+# Map CURSOR_SESSION_LOGGER_* observability/env vars onto the shared
+# COPILOT_SESSION_LOGGER_* vars consumed by lib/logger.sh, so Cursor's
+# documented env vars actually take effect (lib/logger.sh is shared across
+# editors and only reads the COPILOT_ prefix).
+: "${COPILOT_SESSION_LOGGER_SOURCE:=cursor_hook}"
+: "${COPILOT_SESSION_LOGGER_LOKI_ENABLED:=${CURSOR_SESSION_LOGGER_LOKI_ENABLED:-}}"
+: "${COPILOT_SESSION_LOGGER_LOKI_ENDPOINT:=${CURSOR_SESSION_LOGGER_LOKI_ENDPOINT:-}}"
+: "${COPILOT_SESSION_LOGGER_LOKI_TENANT_ID:=${CURSOR_SESSION_LOGGER_LOKI_TENANT_ID:-}}"
+: "${COPILOT_SESSION_LOGGER_OTLP_ENABLED:=${CURSOR_SESSION_LOGGER_OTLP_ENABLED:-}}"
+: "${COPILOT_SESSION_LOGGER_OTLP_ENDPOINT:=${CURSOR_SESSION_LOGGER_OTLP_ENDPOINT:-}}"
+: "${COPILOT_SESSION_LOGGER_OTLP_CLIENT_CERT:=${CURSOR_SESSION_LOGGER_OTLP_CLIENT_CERT:-}}"
+: "${COPILOT_SESSION_LOGGER_OTLP_CLIENT_KEY:=${CURSOR_SESSION_LOGGER_OTLP_CLIENT_KEY:-}}"
+: "${COPILOT_SESSION_LOGGER_OTLP_CA_CERT:=${CURSOR_SESSION_LOGGER_OTLP_CA_CERT:-}}"
+export COPILOT_SESSION_LOGGER_SOURCE COPILOT_SESSION_LOGGER_LOKI_ENABLED \
+  COPILOT_SESSION_LOGGER_LOKI_ENDPOINT COPILOT_SESSION_LOGGER_LOKI_TENANT_ID \
+  COPILOT_SESSION_LOGGER_OTLP_ENABLED COPILOT_SESSION_LOGGER_OTLP_ENDPOINT \
+  COPILOT_SESSION_LOGGER_OTLP_CLIENT_CERT COPILOT_SESSION_LOGGER_OTLP_CLIENT_KEY \
+  COPILOT_SESSION_LOGGER_OTLP_CA_CERT
+
+# shellcheck source=../session-logger/lib/logger.sh
 source "$REPO_ROOT/lib/logger.sh"
-# shellcheck source=../lib/state.sh
+# shellcheck source=../session-logger/lib/state.sh
 source "$REPO_ROOT/lib/state.sh"
-# shellcheck source=../lib/agent-detector.sh
+# shellcheck source=../session-logger/lib/agent-detector.sh
 source "$REPO_ROOT/lib/agent-detector.sh"
-# shellcheck source=../lib/claude-payload.sh
+# shellcheck source=../session-logger/lib/claude-payload.sh
 source "$REPO_ROOT/lib/claude-payload.sh"
-# shellcheck source=../lib/payload.sh
+# shellcheck source=../session-logger/lib/payload.sh
 source "$REPO_ROOT/lib/payload.sh"
-# shellcheck source=../lib/transport.sh
+# shellcheck source=../session-logger/lib/transport.sh
 source "$REPO_ROOT/lib/transport.sh"
 
 ACTION="log"
-EVENT_TYPE_OVERRIDE="${COPILOT_SESSION_LOGGER_EVENT_TYPE:-}"
-SESSION_ID_OVERRIDE="${COPILOT_SESSION_LOGGER_SESSION_ID:-}"
-DRY_RUN="${COPILOT_SESSION_LOGGER_DRY_RUN:-false}"
-METADATA_JSON="${COPILOT_SESSION_LOGGER_METADATA_JSON:-{}}"
+EVENT_TYPE_OVERRIDE="${CURSOR_SESSION_LOGGER_EVENT_TYPE:-}"
+SESSION_ID_OVERRIDE="${CURSOR_SESSION_LOGGER_SESSION_ID:-}"
+DRY_RUN="${CURSOR_SESSION_LOGGER_DRY_RUN:-false}"
+METADATA_JSON="${CURSOR_SESSION_LOGGER_METADATA_JSON:-{}}"
+
 
 usage() {
   cat <<'USAGE'
 Usage:
-  hooks/session-logger.sh --event <hook-event> [--session-id <id>] [--dry-run]
-  hooks/session-logger.sh log --event <hook-event>
-  hooks/session-logger.sh doctor
+  hooks/session-logger-cursor/session-logger-cursor.sh --event <hook-event> [--session-id <id>] [--dry-run]
+  hooks/session-logger-cursor/session-logger-cursor.sh log --event <hook-event>
+  hooks/session-logger-cursor/session-logger-cursor.sh doctor
+
+Cursor AI Editor Hook Integration for session-logger
 
 Required runtime dependencies: bash, jq, curl.
+
+Environment Variables:
+  CURSOR_SESSION_LOGGER_EVENT_TYPE              Override event type from payload
+  CURSOR_SESSION_LOGGER_SESSION_ID              Override session ID
+  CURSOR_SESSION_LOGGER_DRY_RUN                 Dry run mode (no sending to backends)
+  CURSOR_SESSION_LOGGER_METADATA_JSON           Additional metadata to include
+  CURSOR_SESSION_LOGGER_LOKI_ENABLED            Enable Loki endpoint (default: false)
+  CURSOR_SESSION_LOGGER_LOKI_ENDPOINT           Loki push endpoint (default: http://localhost:3100/loki/api/v1/push)
+  CURSOR_SESSION_LOGGER_OTLP_ENABLED            Enable OTLP endpoint (default: false)
+  CURSOR_SESSION_LOGGER_OTLP_ENDPOINT           OTLP collector endpoint (default: http://localhost:4318)
+  CURSOR_SESSION_LOGGER_OTLP_CLIENT_CERT        Client certificate for mTLS (PEM)
+  CURSOR_SESSION_LOGGER_OTLP_CLIENT_KEY         Client private key for mTLS (PEM)
+  CURSOR_SESSION_LOGGER_OTLP_CA_CERT            CA certificate to verify the collector (PEM)
+
+Example:
+  CURSOR_SESSION_LOGGER_LOKI_ENABLED=true \\
+  CURSOR_SESSION_LOGGER_OTLP_ENABLED=true \\
+  bash hooks/session-logger-cursor/session-logger-cursor.sh --event userPromptSubmitted < payload.json
 USAGE
 }
 
@@ -98,6 +138,7 @@ doctor_report() {
     '{
       timestamp:$timestamp,
       runtime:"bash",
+      editor:"cursor",
       home_dir:$home,
       state_dir:$state,
       observability:{
@@ -144,8 +185,8 @@ run_log() {
 
   payload="$(read_stdin_payload)" || return $?
 
-  # Detect agent source (copilot, claude, or unknown)
-  agent_source="$(detect_agent_source "$payload")" || agent_source="unknown"
+  # Detect agent source - force "cursor" for this hook script
+  agent_source="cursor"
 
   hook_event_type="$(extract_event_type "$payload" "$EVENT_TYPE_OVERRIDE")" || return $?
   if [ -z "$hook_event_type" ]; then
@@ -172,7 +213,7 @@ run_log() {
   fi
 
   if ! jq -e . >/dev/null 2>&1 <<< "$METADATA_JSON"; then
-    json_log "warn" "invalid_metadata_json" "COPILOT_SESSION_LOGGER_METADATA_JSON ignored"
+    json_log "warn" "invalid_metadata_json" "CURSOR_SESSION_LOGGER_METADATA_JSON ignored"
     METADATA_JSON="{}"
   fi
   METADATA_JSON="$(echo "$METADATA_JSON" | jq -c .)" || METADATA_JSON="{}"
@@ -225,7 +266,7 @@ main "$@"
 exit_code=$?
 set -e
 if [ "$exit_code" -ne 0 ]; then
-  if logger_bool_true "${COPILOT_SESSION_LOGGER_STRICT:-false}"; then
+  if logger_bool_true "${CURSOR_SESSION_LOGGER_STRICT:-false}"; then
     exit "$exit_code"
   fi
   if command -v jq >/dev/null 2>&1; then

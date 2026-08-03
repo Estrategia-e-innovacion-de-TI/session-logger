@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-06-18T21:35:15.250Z",
+  "cwd": "/Users/jomaver/Desktop/Code/session-logger",
+  "sessionId": "a6add3ac-74af-41f1-baf6-dfec02cd6cd7",
+  "actor": "jomaver",
+  "repository": "session-logger",
+  "branch": "development",
+  "prompt": "investigar hooks de claude code",
+  "hook_event_name": "UserPromptSubmit",
+  "transcript_path": "/Users/jomaver/.claude/projects/-Users-jomaver-Desktop-Code-session-logger/a6add3ac-74af-41f1-baf6-dfec02cd6cd7.jsonl"
+}
